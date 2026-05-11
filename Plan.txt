@@ -1,0 +1,15 @@
+This is the plan.
+
+Active Terrain
+
+Utilize my skills in software and embedded development to create terrain that changes and adapts to tabletop wargames as the game progresses.
+
+Key Features:
+- RGB Baby
+- RFID Detection for troops, (Or something similliar)
+- Publishing to a backend
+
+
+Goal to complete: 100 hours
+
+Reason: Boost resume and have cool project for games of infinity and warhammer 40k.
