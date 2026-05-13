@@ -1,0 +1,6 @@
+Get the Arduino ide, Initial Version: 2.3.8
+
+Install Package for ESP:
+Get esp32, NOT "Arduino ESP32 Boards"
+Initial Version: 3.3.8
+

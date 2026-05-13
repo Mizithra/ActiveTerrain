@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ActiveTerrain"
+version = "0.1.0"
+description = "A short description of my project"
+authors = [
+    {name = "Austin White", email = "austinrwhite@shaw.ca"}
+]
+dependencies = [
+    "requests>=2.25.1",
+    "numpy",
+]
+
+[project.scripts]
+my-command = "my_package.module:main_function"
+
+[tool.pytest.ini_options]
+pythonpath = "src"

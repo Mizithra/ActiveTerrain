@@ -1,0 +1,4 @@
+
+# Smaller requirements .txt file:
+
+pipreqs --force --ignore .venv,venv
