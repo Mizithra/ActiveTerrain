@@ -1,0 +1,113 @@
+{
+  "game_system": "Warhammer 40k",
+
+  "TakeAndHold": {
+    "battlefield_size": "44x60",
+    "objective_count": 4,
+    "deployment_type": "symmetric",
+    "zones": [
+      {
+        "id": "no_mans_land",
+        "type": "central_zone"
+      }
+    ]
+  },
+
+  "turn_structure": {
+    "type": "round_based",
+    "rounds": 3,
+    "phases": ["start_round", "active_turns", "end_round"]
+  },
+
+  "victory_conditions": {
+    "type": "vp_threshold",
+    "target": 10,
+    "tie_breakers": ["objectives_controlled", "kill_difference"]
+  },
+
+  "objectives": [
+    {
+      "id": "reactor_core",
+      "type": "control_point",
+      "scoring": {
+        "method": "per_round",
+        "owner_points": 2,
+        "contested_points": 1
+      },
+      "states": ["neutral", "controlled", "contested", "overloaded"]
+    }
+  ],
+
+  "secondary_systems": {
+    "enabled": true,
+
+    "selection_model": {
+      "type": "hybrid",
+      "options_per_player": 3,
+      "hidden_selection": true
+    },
+
+    "categories": [
+      {
+        "id": "control",
+        "type": "objective_control",
+        "description": "Score based on holding objectives",
+        "examples": [
+          {
+            "condition": "hold_more_than_opponent",
+            "points": 5
+          }
+        ]
+      },
+      {
+        "id": "action",
+        "type": "perform_action",
+        "description": "Complete actions on terrain nodes"
+      },
+      {
+        "id": "elimination",
+        "type": "destroy_units",
+        "description": "Remove enemy assets"
+      },
+      {
+        "id": "positional",
+        "type": "board_presence",
+        "description": "Control areas of the battlefield"
+      },
+      {
+        "id": "classified",
+        "type": "secret_objective",
+        "description": "Hidden objectives revealed at scoring"
+      }
+    ]
+  },
+
+  "event_system": {
+    "enabled": true,
+
+    "global_events": [
+      {
+        "id": "solar_flare",
+        "trigger": "round_2",
+        "effects": [
+          "reduce_radar_range",
+          "disable_scan_actions"
+        ]
+      }
+    ],
+
+    "chain_reactions": true
+  },
+
+  "scoring": {
+    "primary": {
+      "type": "per_round",
+      "max_per_round": 10
+    },
+
+    "secondary": {
+      "type": "dynamic",
+      "max_per_game": 15
+    }
+  }
+}
