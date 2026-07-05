@@ -1,16 +1,16 @@
 {
   "primary_objective": {
-    "light_color": "gold",
+    "light_color": "blue",
     "light_pattern": "pulse",
     "sound_file": "objective_secured.mp3"
   },
   "secondary_objective": {
-    "light_color": "blue",
+    "light_color": "red",
     "light_pattern": "solid",
     "sound_file": "objective_minor.mp3"
   },
   "hazard": {
-    "light_color": "red",
+    "light_color": "green",
     "light_pattern": "flash",
     "sound_file": "hazard_warning.mp3"
   }

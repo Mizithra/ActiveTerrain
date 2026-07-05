@@ -6,8 +6,9 @@ Utilize my skills in software and embedded development to create terrain that ch
 
 Key Features:
 - RGB Baby
-- RFID Detection for troops, (Or something similliar)
-- Publishing to a backend
+- RFID Detection for troops,
+- MQTT Publishing to a backend
+- Add Terrain Effects: (LED, OLED, Vibration< MP3 Player)
 
 
 Goal to complete: 100 hours
