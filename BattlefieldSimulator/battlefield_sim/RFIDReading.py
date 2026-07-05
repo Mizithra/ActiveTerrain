@@ -14,8 +14,6 @@ class ObjectiveControlLevel(Enum):
 
 def determine_control_level(detection_data):
     
-    # 
-     
     for data in detection_data:
         if data['type'] == 'flag':
             return ObjectiveControlLevel.FLAG

@@ -1,0 +1,14 @@
+{
+  "04A3B2C1": {
+    "name": "Intercessor Squad",
+    "faction": "Space Marines",
+    "owner": "Alice",
+    "points": 100
+  },
+  "9F1122AA": {
+    "name": "Ork Boyz",
+    "faction": "Orks",
+    "owner": "Bob",
+    "points": 90
+  }
+}

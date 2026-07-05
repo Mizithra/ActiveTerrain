@@ -1,4 +1,4 @@
-import UserInterface
+import ConsoleUI.UserInterface as UserInterface
 import threading
 import time
 

@@ -14,7 +14,6 @@
   },
 
   "turn_structure": {
-    "type": "round_based",
     "rounds": 3,
     "phases": ["start_round", "active_turns", "end_round"]
   },

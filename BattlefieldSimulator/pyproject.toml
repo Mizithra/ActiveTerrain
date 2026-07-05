@@ -1,21 +1,15 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ActiveTerrain"
+name = "battlefield_sim"
 version = "0.1.0"
-description = "A short description of my project"
-authors = [
-    {name = "Austin White", email = "austinrwhite@shaw.ca"}
-]
+description = "MQTT-based battlefield simulator"
+requires-python = ">=3.9"
 dependencies = [
-    "requests>=2.25.1",
-    "numpy",
+    "paho-mqtt",
 ]
 
-[project.scripts]
-my-command = "my_package.module:main_function"
-
-[tool.pytest.ini_options]
-pythonpath = "src"
+[tool.setuptools.packages.find]
+where = ["."]
