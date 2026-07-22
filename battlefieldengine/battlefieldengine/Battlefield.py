@@ -23,11 +23,10 @@ from battlefieldengine.TerrainNode import TerrainNode
 logger = logging.getLogger(__name__)
 
 # --- MQTT topic scheme --------------------------------------------------
-TOPIC_RFID_SCAN = "battlefield/rfid"     # ESP32 -> backend: {"uid": "..."}
+BASE_RFID_SCAN = "battlefield/terrain"     # ESP32 -> backend: {"uid": "..."}
 TOPIC_TURN_STATE = "battlefield/turn/state"   # backend -> everyone: {"turn": int, "phase": str}
 TOPIC_UNIT_EVENT = "battlefield/units/event"  # backend -> everyone: {"uid", "name", "event"}
 TOPIC_COMMAND = "battlefield/command"         # UI -> backend: {"action": "...", ...}
-
 
 class UnitRegistry:
     """Maps RFID UID -> Unit metadata, loaded from a JSON file.
@@ -64,18 +63,19 @@ class Battlefield:
 
     Usage:
         registry = UnitRegistry(Path("UnitRegistry.json"))
-        bf = Battlefield(mqtt_client, registry)
+        bf = Battlefield("HomeBase", mqtt_client, registry)
         bf.start()
         bf.load_terrain_nodes(Path("ObjectiveMarkers.json"), Path("ObjectiveRoles.json"))
     """
 
-    def __init__(self, mqtt_client, registry: UnitRegistry, presence_timeout_seconds: float = 3.0):
+    def __init__(self, terrain_name: str, mqtt_client, registry: UnitRegistry, presence_timeout_seconds: float = 3.0):
         """
         presence_timeout_seconds: how long a unit can go without a heartbeat
         before it's considered departed. Should be a bit longer than the
         ESP32's heartbeat interval (e.g. 3s if it heartbeats every 1s) so a
         single dropped MQTT message doesn't cause a false departure.
         """
+        self._terrain_name = terrain_name
         self._mqtt = mqtt_client
         self._registry = registry
         self._presence_timeout = timedelta(seconds=presence_timeout_seconds)
@@ -84,6 +84,16 @@ class Battlefield:
         self._turn = 1
         self._phase = PHASE_ORDER[0]
         self._units_seen: dict[str, UnitState] = {}
+
+
+        #Create MQTT Topics based on terrain name
+        self.TOPIC_RFID_SCAN = f"battlefield/terrain/{self._terrain_name}/rfid_scan"
+        self.TOPIC_COMMAND = f"battlefield/terrain/{self._terrain_name}/command"
+        self.TOPIC_TURN_STATE = f"battlefield/terrain/{self._terrain_name}/turn/state"
+        self.TOPIC_UNIT_EVENT = f"battlefield/terrain/{self._terrain_name}/units"
+
+        # MQTT Topics for TerrainNode Events (e.g. LEDs)
+        self.TOPIC_LED_CONTROL = f"battlefield/terrain/{self._terrain_name}/led_control"
 
         # Keyed by mqtt_topic so callers can look a node up by topic later
         # (e.g. "which terrain node just reported a unit?").
@@ -95,8 +105,8 @@ class Battlefield:
     # --- lifecycle --------------------------------------------------
     def start(self) -> None:
         """Subscribe to the relevant MQTT topics. Call once at startup."""
-        self._mqtt.subscribe(TOPIC_RFID_SCAN, self._on_rfid_scan)
-        self._mqtt.subscribe(TOPIC_COMMAND, self._on_command)
+        self._mqtt.subscribe(self.TOPIC_RFID_SCAN, self._on_rfid_scan)
+        self._mqtt.subscribe(self.TOPIC_COMMAND, self._on_command)
         logger.info("Battlefield subscribed to MQTT topics")
 
     # --- terrain node ownership ----------------------------------------
@@ -160,17 +170,23 @@ class Battlefield:
         Actual departure is detected by check_departures(), not here.
         """
         uid = payload.get("uid")
+
+        # If no UID included, bail out
         if not uid:
             logger.warning("RFID scan message missing 'uid': %s", payload)
             return
 
+        # Get Unit Data from the UnitRegistry, (Configuration -> UnitRegistry.json)
         unit = self._registry.get(uid)
+
+        # If Unit is not found, log message, return
         if unit is None:
             logger.warning("Unrecognized RFID UID scanned: %s", uid)
             self._notify("unknown_unit_scanned", {"uid": uid})
             return
 
         newly_arrived = False
+
         with self._lock:
             state = self._units_seen.get(uid)
             now = datetime.now()
@@ -186,7 +202,8 @@ class Battlefield:
 
         if newly_arrived:
             data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_arrived"}
-            self._mqtt.publish(TOPIC_UNIT_EVENT, data)
+            self._mqtt.publish(self.TOPIC_UNIT_EVENT, data)
+            self._mqtt.publish(self.TOPIC_LED_CONTROL, {"uid": uid, "state": "on"})
             self._notify("unit_arrived", data)
 
     def check_departures(self) -> None:
@@ -205,7 +222,7 @@ class Battlefield:
 
         for uid, unit in departed:
             data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_departed"}
-            self._mqtt.publish(TOPIC_UNIT_EVENT, data)
+            self._mqtt.publish(self.TOPIC_UNIT_EVENT, data)
             self._notify("unit_departed", data)
 
     def _on_command(self, topic: str, payload: dict) -> None:
@@ -254,7 +271,7 @@ class Battlefield:
                      {"turn": turn, "phase": phase.value})
 
     def _publish_turn_state(self, turn: int, phase: Phase) -> None:
-        self._mqtt.publish(TOPIC_TURN_STATE, {"turn": turn, "phase": phase.value})
+        self._mqtt.publish(self.TOPIC_TURN_STATE, {"turn": turn, "phase": phase.value})
 
     # --- queries ------------------------------------------------------
     def get_units_seen(self) -> list[UnitState]:

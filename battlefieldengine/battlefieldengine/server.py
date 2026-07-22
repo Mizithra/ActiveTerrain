@@ -100,7 +100,7 @@ class GameServer:
 
     def _build_battlefield(self) -> Battlefield:
         timeout = self.config.get("presence_timeout_seconds", 5.0)
-        battlefield = Battlefield(self.mqtt, self.registry, presence_timeout_seconds=timeout)
+        battlefield = Battlefield("home_base", self.mqtt, self.registry, presence_timeout_seconds=timeout)
         logger.info("Battlefield ready (presence timeout: %ss)", timeout)
         return battlefield
 
