@@ -23,7 +23,7 @@ from battlefieldengine.TerrainNode import TerrainNode
 logger = logging.getLogger(__name__)
 
 # --- MQTT topic scheme --------------------------------------------------
-TOPIC_RFID_SCAN = "battlefield/rfid/scan"     # ESP32 -> backend: {"uid": "..."}
+TOPIC_RFID_SCAN = "battlefield/rfid"     # ESP32 -> backend: {"uid": "..."}
 TOPIC_TURN_STATE = "battlefield/turn/state"   # backend -> everyone: {"turn": int, "phase": str}
 TOPIC_UNIT_EVENT = "battlefield/units/event"  # backend -> everyone: {"uid", "name", "event"}
 TOPIC_COMMAND = "battlefield/command"         # UI -> backend: {"action": "...", ...}
