@@ -1,12 +1,8 @@
 """
-MQTTAdapter: wraps a raw paho-mqtt client (as returned by
-battlefield_sim.mqtt_client.create_mqtt_client()) to provide the
-publish(topic, dict) / subscribe(topic, callback) interface that
-Battlefield and TerrainNode expect.
-
-This lives in its own module so server.py, the Textual UI, and anything
-else that needs to talk MQTT all share one implementation instead of each
-rolling their own.
+MQTTAdapter: wraps a raw paho-mqtt client to provide the
+publish(topic, dict) / subscribe(topic, callback) interface Battlefield
+and TerrainNode expect. Shared by server.py and any UI so there's one
+implementation, not several copies.
 """
 from __future__ import annotations
 

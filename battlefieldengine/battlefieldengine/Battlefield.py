@@ -1,12 +1,14 @@
 """
-Battlefield: ties together RFID scan events, MQTT messaging, turn/phase
-tracking, and now TerrainNode ownership for the smart terrain project.
+Battlefield: global game-state object. Owns turn/phase tracking,
+cross-marker unit presence, and TerrainNode ownership.
 
-Battlefield owns the single mqtt_client passed into it, and hands that
-same client down to every TerrainNode it creates -- so nothing else in
-the codebase (server.py, the UI, etc.) needs to worry about making sure
-terrain nodes are wired to the right client. Ask Battlefield for its
-terrain nodes rather than constructing them elsewhere.
+Battlefield does NOT subscribe to any raw RFID topic itself -- each
+TerrainNode is the thing actually wired to one specific ESP32, so it hears
+scans directly and notifies Battlefield via a callback (_on_terrain_scan).
+This keeps topic ownership unambiguous: TerrainNode owns its own
+{mqtt_topic}/rfid and /led; Battlefield owns the global turn/command/
+unit-event topics, which are the same regardless of how many terrain
+markers exist on the table.
 """
 from __future__ import annotations
 
@@ -19,14 +21,15 @@ from pathlib import Path
 
 from battlefieldengine.Models import PHASE_ORDER, Phase, Unit, UnitState
 from battlefieldengine.TerrainNode import TerrainNode
+from battlefieldengine.RFIDReading import RFIDReading
 
 logger = logging.getLogger(__name__)
 
-# --- MQTT topic scheme --------------------------------------------------
-BASE_RFID_SCAN = "battlefield/terrain"     # ESP32 -> backend: {"uid": "..."}
+# --- MQTT topic scheme (global -- one game, regardless of marker count) ---
 TOPIC_TURN_STATE = "battlefield/turn/state"   # backend -> everyone: {"turn": int, "phase": str}
-TOPIC_UNIT_EVENT = "battlefield/units/event"  # backend -> everyone: {"uid", "name", "event"}
+TOPIC_UNIT_EVENT = "battlefield/units/event"  # backend -> everyone: {"uid", "name", "event", "terrain"}
 TOPIC_COMMAND = "battlefield/command"         # UI -> backend: {"action": "...", ...}
+
 
 class UnitRegistry:
     """Maps RFID UID -> Unit metadata, loaded from a JSON file.
@@ -58,24 +61,21 @@ class UnitRegistry:
 
 
 class Battlefield:
-    """Central game-state object: turn/phase tracking, unit presence, and
-    terrain node ownership.
-
+    """
     Usage:
         registry = UnitRegistry(Path("UnitRegistry.json"))
-        bf = Battlefield("HomeBase", mqtt_client, registry)
+        bf = Battlefield(mqtt_client, registry)
         bf.start()
         bf.load_terrain_nodes(Path("ObjectiveMarkers.json"), Path("ObjectiveRoles.json"))
     """
 
-    def __init__(self, terrain_name: str, mqtt_client, registry: UnitRegistry, presence_timeout_seconds: float = 3.0):
+    def __init__(self, mqtt_client, registry: UnitRegistry, presence_timeout_seconds: float = 3.0):
         """
         presence_timeout_seconds: how long a unit can go without a heartbeat
-        before it's considered departed. Should be a bit longer than the
-        ESP32's heartbeat interval (e.g. 3s if it heartbeats every 1s) so a
-        single dropped MQTT message doesn't cause a false departure.
+        (from ANY terrain node) before it's considered departed. Should be
+        a bit longer than the ESP32's heartbeat interval so a single
+        dropped MQTT message doesn't cause a false departure.
         """
-        self._terrain_name = terrain_name
         self._mqtt = mqtt_client
         self._registry = registry
         self._presence_timeout = timedelta(seconds=presence_timeout_seconds)
@@ -85,35 +85,20 @@ class Battlefield:
         self._phase = PHASE_ORDER[0]
         self._units_seen: dict[str, UnitState] = {}
 
-
-        #Create MQTT Topics based on terrain name
-        self.TOPIC_RFID_SCAN = f"battlefield/terrain/{self._terrain_name}/rfid_scan"
-        self.TOPIC_COMMAND = f"battlefield/terrain/{self._terrain_name}/command"
-        self.TOPIC_TURN_STATE = f"battlefield/terrain/{self._terrain_name}/turn/state"
-        self.TOPIC_UNIT_EVENT = f"battlefield/terrain/{self._terrain_name}/units"
-
-        # MQTT Topics for TerrainNode Events (e.g. LEDs)
-        self.TOPIC_LED_CONTROL = f"battlefield/terrain/{self._terrain_name}/led_control"
-
-        # Keyed by mqtt_topic so callers can look a node up by topic later
-        # (e.g. "which terrain node just reported a unit?").
         self.terrain_nodes: dict[str, TerrainNode] = {}
-
-        # Listeners are plain callables: fn(event_type: str, data: dict)
         self._listeners: list[Callable[[str, dict], None]] = []
 
     # --- lifecycle --------------------------------------------------
     def start(self) -> None:
-        """Subscribe to the relevant MQTT topics. Call once at startup."""
-        self._mqtt.subscribe(self.TOPIC_RFID_SCAN, self._on_rfid_scan)
-        self._mqtt.subscribe(self.TOPIC_COMMAND, self._on_command)
+        """Subscribe to global topics. Call once at startup."""
+        self._mqtt.subscribe(TOPIC_COMMAND, self._on_command)
         logger.info("Battlefield subscribed to MQTT topics")
 
     # --- terrain node ownership ----------------------------------------
     def load_terrain_nodes(self, markers_path: Path, roles_path: Path) -> list[TerrainNode]:
-        """Build TerrainNode instances from config and start each one using
-        THIS Battlefield's own mqtt_client -- guaranteeing every node shares
-        the same connection rather than each caller needing to pass one in.
+        """Build TerrainNode instances from config, start each one on THIS
+        Battlefield's mqtt_client, and wire each node's on_scan callback
+        back to this Battlefield so scans update global unit presence.
         """
         with open(roles_path) as f:
             roles = json.load(f)
@@ -127,6 +112,7 @@ class Battlefield:
                 mqtt_topic=entry["mqtt_topic"],
                 led_color=role_profile.get("light_color"),
                 led_pattern=role_profile.get("light_pattern"),
+                on_scan=self._on_terrain_scan,
             )
             node.start(self._mqtt)
             self.terrain_nodes[entry["mqtt_topic"]] = node
@@ -140,12 +126,8 @@ class Battlefield:
 
     # --- listener/observer pattern (for UI updates) ------------------
     def add_listener(self, callback: Callable[[str, dict], None]) -> None:
-        """Register a callback invoked on every state change.
-
-        NOTE: this fires from the MQTT client's network thread, NOT from
-        your Textual app's event loop. When updating a Textual UI, marshal
-        back onto the app thread rather than touching widgets directly:
-
+        """NOTE: fires from the MQTT client's network thread. When updating
+        a Textual UI, marshal back onto the app thread:
             def on_event(event_type, data):
                 app.call_from_thread(my_widget.update, data)
         """
@@ -158,41 +140,25 @@ class Battlefield:
             except Exception:
                 logger.exception("Listener raised an exception for event %s", event_type)
 
-    # --- MQTT inbound handlers ----------------------------------------
-    def _on_rfid_scan(self, topic: str, payload: dict) -> None:
-        """Handle a presence heartbeat from the ESP32.
-
-        The ESP32 should publish this message repeatedly (throttled, e.g.
-        once per second) for as long as a card is on the reader, and stop
-        publishing entirely once the card is removed. This handler treats
-        the FIRST heartbeat after either startup or a departure as an
-        "arrival"; subsequent heartbeats just refresh last_seen silently.
-        Actual departure is detected by check_departures(), not here.
+    # --- scan handling (called by TerrainNode, not MQTT directly) --------
+    def _on_terrain_scan(self, terrain_node: TerrainNode, reading: RFIDReading) -> None:
+        """Called by a TerrainNode on every scan heartbeat it receives.
+        Same "first heartbeat = arrival" logic as before -- just triggered
+        by TerrainNode rather than a raw MQTT subscription.
         """
-        uid = payload.get("uid")
-
-        # If no UID included, bail out
-        if not uid:
-            logger.warning("RFID scan message missing 'uid': %s", payload)
-            return
-
-        # Get Unit Data from the UnitRegistry, (Configuration -> UnitRegistry.json)
-        unit = self._registry.get(uid)
-
-        # If Unit is not found, log message, return
+        unit = self._registry.get(reading.uid)
         if unit is None:
-            logger.warning("Unrecognized RFID UID scanned: %s", uid)
-            self._notify("unknown_unit_scanned", {"uid": uid})
+            logger.warning("Unrecognized RFID UID scanned at %s: %s", terrain_node.name, reading.uid)
+            self._notify("unknown_unit_scanned", {"uid": reading.uid, "terrain": terrain_node.name})
             return
 
         newly_arrived = False
-
         with self._lock:
-            state = self._units_seen.get(uid)
+            state = self._units_seen.get(reading.uid)
             now = datetime.now()
             if state is None:
                 state = UnitState(unit=unit, on_field=True, last_seen=now)
-                self._units_seen[uid] = state
+                self._units_seen[reading.uid] = state
                 newly_arrived = True
             else:
                 if not state.on_field:
@@ -201,16 +167,20 @@ class Battlefield:
                 state.last_seen = now
 
         if newly_arrived:
-            data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_arrived"}
-            self._mqtt.publish(self.TOPIC_UNIT_EVENT, data)
-            self._mqtt.publish(self.TOPIC_LED_CONTROL, {"uid": uid, "state": "on"})
+            data = {
+                "uid": reading.uid,
+                "name": unit.name,
+                "faction": unit.faction,
+                "event": "unit_arrived",
+                "terrain": terrain_node.name,
+            }
+            self._mqtt.publish(TOPIC_UNIT_EVENT, data)
             self._notify("unit_arrived", data)
 
     def check_departures(self) -> None:
         """Sweep for units that haven't sent a heartbeat within the presence
         timeout and mark them departed. Call this periodically (e.g. every
-        second) from a background loop, asyncio task, or your Textual app's
-        `set_interval` -- this class doesn't schedule it for you.
+        second) from a background loop.
         """
         now = datetime.now()
         departed = []
@@ -222,13 +192,10 @@ class Battlefield:
 
         for uid, unit in departed:
             data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_departed"}
-            self._mqtt.publish(self.TOPIC_UNIT_EVENT, data)
+            self._mqtt.publish(TOPIC_UNIT_EVENT, data)
             self._notify("unit_departed", data)
-            self._mqtt.publish(self.TOPIC_LED_CONTROL, {"uid": uid, "state": "off"})
-
 
     def _on_command(self, topic: str, payload: dict) -> None:
-        """Handle commands published by the UI (e.g. manual turn increment)."""
         action = payload.get("action")
         if action == "increment_turn":
             self.increment_turn()
@@ -258,7 +225,6 @@ class Battlefield:
         self._notify("phase_changed", {"turn": turn, "phase": phase.value})
 
     def next_phase(self) -> None:
-        """Advance to the next phase, rolling into a new turn if at the end."""
         with self._lock:
             idx = PHASE_ORDER.index(self._phase)
             rolled_over = idx + 1 >= len(PHASE_ORDER)
@@ -273,7 +239,7 @@ class Battlefield:
                      {"turn": turn, "phase": phase.value})
 
     def _publish_turn_state(self, turn: int, phase: Phase) -> None:
-        self._mqtt.publish(self.TOPIC_TURN_STATE, {"turn": turn, "phase": phase.value})
+        self._mqtt.publish(TOPIC_TURN_STATE, {"turn": turn, "phase": phase.value})
 
     # --- queries ------------------------------------------------------
     def get_units_seen(self) -> list[UnitState]:

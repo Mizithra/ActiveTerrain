@@ -1,17 +1,17 @@
 [
   {
     "name": "Home Base",
-    "mqtt_topic": "battlefield/objectives/home_base",
+    "mqtt_topic": "battlefield/terrain/home_base",
     "role": "primary_objective"
   },
   {
     "name": "Ruined Chapel",
-    "mqtt_topic": "battlefield/objectives/ruined_chapel",
+    "mqtt_topic": "battlefield/terrain/ruined_chapel",
     "role": "secondary_objective"
   },
   {
     "name": "Toxic Vent",
-    "mqtt_topic": "battlefield/objectives/toxic_vent",
+    "mqtt_topic": "battlefield/terrain/toxic_vent",
     "role": "hazard"
   }
 ]

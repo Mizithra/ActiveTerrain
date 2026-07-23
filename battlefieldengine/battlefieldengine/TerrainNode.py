@@ -4,21 +4,24 @@ wired together over MQTT. Tracks which units are currently occupying it
 and reacts by lighting up when a new unit arrives.
 
 Each TerrainNode owns a topic namespace derived from a single base topic:
-    {mqtt_topic}/rfid   <- ESP32 publishes scan messages here
+    {mqtt_topic}/rfid_scan   <- ESP32 publishes scan messages here
     {mqtt_topic}/led    <- this class publishes LED commands here
 
-`mqtt_client` just needs:
-    publish(topic: str, payload: dict) -> None
-    subscribe(topic: str, callback: Callable[[str, dict], None]) -> None
+TerrainNode is the thing actually wired to one specific ESP32 -- it's the
+right place to hear raw scans. It notifies an optional on_scan callback
+with every scan (not just new arrivals), which is how Battlefield hears
+about unit presence without subscribing to any RFID topic itself.
 """
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 from battlefieldengine.RFIDReading import RFIDReading
 
 logger = logging.getLogger(__name__)
+
+OnScanCallback = Callable[["TerrainNode", RFIDReading], None]
 
 
 class TerrainNode:
@@ -28,24 +31,25 @@ class TerrainNode:
         mqtt_topic: str,
         led_color: Optional[str] = None,
         led_pattern: Optional[str] = None,
+        on_scan: Optional[OnScanCallback] = None,
     ):
         self.name = name
         self.mqtt_topic = mqtt_topic
         self.led_color = led_color
         self.led_pattern = led_pattern
+        self.on_scan = on_scan
         self.occupying_units: set[str] = set()
         self._mqtt = None  # set in start()
 
     @property
     def rfid_topic(self) -> str:
-        return f"{self.mqtt_topic}/rfid"
+        return f"{self.mqtt_topic}/rfid_scan"
 
     @property
     def led_topic(self) -> str:
-        return f"{self.mqtt_topic}/led"
+        return f"{self.mqtt_topic}/led_control"
 
     def start(self, mqtt_client) -> None:
-        """Subscribe to this node's RFID topic. Call once at startup."""
         self._mqtt = mqtt_client
         mqtt_client.subscribe(self.rfid_topic, self._on_message)
         logger.info("TerrainNode '%s' listening on %s", self.name, self.rfid_topic)
@@ -58,10 +62,6 @@ class TerrainNode:
         self.handle_scan(reading)
 
     def handle_scan(self, reading: RFIDReading) -> None:
-        """Add the scanned unit to this node's occupant list. Lights up
-        only on a NEW arrival, not on every repeated scan of a unit
-        already sitting on the node.
-        """
         is_new_arrival = reading.uid not in self.occupying_units
         self.occupying_units.add(reading.uid)
 
@@ -72,11 +72,13 @@ class TerrainNode:
             )
             self.light_up()
 
+        # Fires on every scan, not just new arrivals -- Battlefield needs
+        # the repeated heartbeats to keep its own presence-timeout logic
+        # accurate, the same way it would if it were listening directly.
+        if self.on_scan:
+            self.on_scan(self, reading)
+
     def remove_unit(self, uid: str) -> None:
-        """Not wired to anything yet — call this once departure detection
-        exists (heartbeat + timeout sweep, same pattern as
-        Battlefield.check_departures). Turns the LED off once empty.
-        """
         self.occupying_units.discard(uid)
         if not self.occupying_units:
             self.light_off()

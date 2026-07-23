@@ -1,56 +1,33 @@
-import json
 import logging
-from typing import Callable
+from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Button, Footer, Header, Log, Static
 
-import battlefieldengine.mqtt_client as mqtt_client_module
+from battlefieldengine import mqtt_client as mqtt_client_module
+from battlefieldengine.mqtt_adapter import MQTTAdapter
 from battlefieldengine.Battlefield import TOPIC_COMMAND, TOPIC_TURN_STATE, TOPIC_UNIT_EVENT
+from RegistryManager import RegistryManager
+from RegistrationScreen import RegistrationScreen
 
 logger = logging.getLogger(__name__)
 
+# The registration station's OBJECTIVE_TOPIC -- point this at whichever
+# ESP32 is doing registration duty.
+REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain/"
+REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
+REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
 
-class MQTTAdapter:
-    """Wraps a raw paho-mqtt client so it matches the publish(topic, dict) /
-    subscribe(topic, callback) interface Battlefield expects. If your
-    mqtt_client.py already does this, skip this class and pass your client
-    straight through instead.
-    """
-
-    def __init__(self, client, qos: int = 1):
-        self._client = client
-        self._qos = qos
-        self._callbacks: dict[str, Callable[[str, dict], None]] = {}
-        self._client.on_message = self._on_message
-
-    def publish(self, topic: str, payload: dict) -> None:
-        self._client.publish(topic, json.dumps(payload), qos=self._qos)
-
-    def subscribe(self, topic: str, callback: Callable[[str, dict], None]) -> None:
-        self._callbacks[topic] = callback
-        self._client.subscribe(topic)
-
-    def _on_message(self, client, userdata, msg) -> None:
-        callback = self._callbacks.get(msg.topic)
-        if not callback:
-            return
-        try:
-            payload = json.loads(msg.payload.decode())
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            logger.warning("Non-JSON payload on %s: %r", msg.topic, msg.payload)
-            return
-        callback(msg.topic, payload)
-
-    def loop_stop(self) -> None:
-        self._client.loop_stop()
+UNITS_PATH = Path("battlefieldengine/configurations/Units.json")
+TAGS_PATH = Path("battlefieldengine/configurations/TagAssignments.json")
 
 
 class BattlefieldUI(App):
-    """Thin client: publishes turn/phase commands, displays whatever state
-    Battlefield broadcasts back, and logs unit arrival/departure events.
-    Holds no game state of its own — Battlefield is the source of truth.
+    """Thin client: publishes turn/phase commands, displays whatever global
+    state Battlefield broadcasts back, logs unit events (now tagged with
+    which terrain marker they happened at), and can open Registration mode.
+    Holds no game state of its own -- Battlefield is the source of truth.
     """
 
     CSS = """
@@ -58,7 +35,7 @@ class BattlefieldUI(App):
         align: center middle;
     }
     #container {
-        width: 50;
+        width: 56;
         height: auto;
         border: round cyan;
         padding: 1;
@@ -71,7 +48,7 @@ class BattlefieldUI(App):
         text-style: bold;
     }
     #event_log {
-        height: 8;
+        height: 10;
         margin-top: 1;
         border: round grey;
     }
@@ -83,6 +60,7 @@ class BattlefieldUI(App):
     BINDINGS = [
         ("n", "next_phase", "Next Phase"),
         ("t", "increment_turn", "New Turn"),
+        ("g", "open_registration", "Registration"),
         ("q", "quit", "Quit"),
     ]
 
@@ -93,6 +71,7 @@ class BattlefieldUI(App):
         self.mqtt = MQTTAdapter(raw_client)
         self.turn = 1
         self.phase = "command"
+        self.registry = RegistryManager(UNITS_PATH, TAGS_PATH)
 
     def on_mount(self) -> None:
         self.mqtt.subscribe(TOPIC_TURN_STATE, self._on_turn_state)
@@ -107,18 +86,20 @@ class BattlefieldUI(App):
             yield Static(self._status_text(), id="status")
             yield Button("Next Phase (n)", id="next_phase")
             yield Button("New Turn (t)", id="new_turn")
-            yield Log(id="event_log", max_lines=8)
+            yield Button("Registration (g)", id="registration")
+            yield Log(id="event_log", max_lines=10)
         yield Footer()
 
     def _status_text(self) -> str:
         return f"Turn {self.turn} \u2014 {self.phase.title()}"
 
-    # --- user actions: publish commands, don't mutate local state ------
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "next_phase":
             self.action_next_phase()
         elif event.button.id == "new_turn":
             self.action_increment_turn()
+        elif event.button.id == "registration":
+            self.action_open_registration()
 
     def action_next_phase(self) -> None:
         self.mqtt.publish(TOPIC_COMMAND, {"action": "next_phase"})
@@ -126,8 +107,14 @@ class BattlefieldUI(App):
     def action_increment_turn(self) -> None:
         self.mqtt.publish(TOPIC_COMMAND, {"action": "increment_turn"})
 
-    # --- MQTT inbound: these fire on the network thread, so marshal
-    # updates back onto the app via call_from_thread before touching widgets
+    def action_open_registration(self) -> None:
+        self.push_screen(
+            RegistrationScreen(
+                self.mqtt, self.registry, REGISTER_START_TOPIC, REGISTER_RESULT_TOPIC
+            )
+        )
+
+    # --- MQTT inbound: fires on the network thread, marshal via call_from_thread
     def _on_turn_state(self, topic: str, payload: dict) -> None:
         self.turn = payload.get("turn", self.turn)
         self.phase = payload.get("phase", self.phase)
@@ -136,7 +123,9 @@ class BattlefieldUI(App):
     def _on_unit_event(self, topic: str, payload: dict) -> None:
         name = payload.get("name", "Unknown unit")
         event = payload.get("event", "event")
-        self.call_from_thread(self._log_event, f"{name}: {event}")
+        terrain = payload.get("terrain")
+        text = f"{name}: {event}" + (f" @ {terrain}" if terrain else "")
+        self.call_from_thread(self._log_event, text)
 
     def _refresh_status(self) -> None:
         self.query_one("#status", Static).update(self._status_text())

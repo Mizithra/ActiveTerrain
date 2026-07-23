@@ -1,20 +1,5 @@
 """
 server.py: main backend entrypoint for ActiveTerrain.
-
-GameServer is the composition root: it owns the long-lived pieces (the
-MQTT client, the Battlefield -- which in turn owns TerrainNodes) as member
-variables. Config parsing and logging setup stay as plain module-level
-functions since they run once, before there's a server object to attach
-them to.
-
-Adding a new feature later (a scoreboard, a sound controller, a Discord
-bridge, ...) means:
-  1. Add `self.<feature> = None` in __init__
-  2. Add a `_build_<feature>(self)` method, called from setup()
-  3. It can freely use self.mqtt / self.battlefield, no new plumbing needed
-
-Run with:
-    python server.py --config server_config.json
 """
 from __future__ import annotations
 
@@ -35,20 +20,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = "battlefieldengine/battlefieldengine/configurations/server_config.json"
 
 
-# --------------------------------------------------------------------------
-# Config
-# --------------------------------------------------------------------------
 def load_config(path: Path) -> dict:
-    """Central place for server settings. Add new keys here as the project
-    grows (e.g. "sound_config_path") rather than hardcoding paths elsewhere.
-    """
     with open(path) as f:
         return json.load(f)
 
 
-# --------------------------------------------------------------------------
-# Logging
-# --------------------------------------------------------------------------
 def setup_logging(config: dict) -> None:
     log_cfg = config.get("logging", {})
     log_path = Path(log_cfg.get("path", "logs/server.log"))
@@ -65,33 +41,19 @@ def setup_logging(config: dict) -> None:
     )
 
 
-# --------------------------------------------------------------------------
-# GameServer
-# --------------------------------------------------------------------------
 class GameServer:
-    """Owns the long-lived backend pieces: the MQTT client and the
-    Battlefield (which owns TerrainNodes). Holding these as member
-    variables -- rather than passing loose locals around main() -- is
-    what makes it easy to bolt on new features later without threading
-    new parameters through a chain of functions.
-    """
-
     def __init__(self, config: dict):
-        ### Initialize components in the order they depend on each other.
         self.config = config
+        self.mqtt: Optional[MQTTAdapter] = None
+        self.battlefield: Optional[Battlefield] = None
 
+    def setup(self) -> None:
         self.mqtt = self._build_mqtt_client()
-
-        self.registry = UnitRegistry(Path(self.config["unit_registry_path"])) # must be before battlefield
-
         self.battlefield = self._build_battlefield()
         self.battlefield.load_terrain_nodes(
             Path(self.config["objective_markers_path"]),
             Path(self.config["objective_roles_path"]),
         )
-        self.battlefield.start()
-
-
 
     def _build_mqtt_client(self) -> MQTTAdapter:
         raw_client = mqtt_client_module.create_mqtt_client()
@@ -99,8 +61,10 @@ class GameServer:
         return MQTTAdapter(raw_client)
 
     def _build_battlefield(self) -> Battlefield:
-        timeout = self.config.get("presence_timeout_seconds", 5.0)
-        battlefield = Battlefield("home_base", self.mqtt, self.registry, presence_timeout_seconds=timeout)
+        registry = UnitRegistry(Path(self.config["unit_registry_path"]))
+        timeout = self.config.get("presence_timeout_seconds", 3.0)
+        battlefield = Battlefield(self.mqtt, registry, presence_timeout_seconds=timeout)
+        battlefield.start()
         logger.info("Battlefield ready (presence timeout: %ss)", timeout)
         return battlefield
 
@@ -138,6 +102,7 @@ def main() -> None:
     logger.info("Starting ActiveTerrain server (config: %s)", args.config)
 
     server = GameServer(config)
+    server.setup()
     try:
         server.run_forever()
     finally:

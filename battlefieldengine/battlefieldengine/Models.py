@@ -1,4 +1,4 @@
-"""Core data models for the battlefield simulator."""
+"""Core data models for the battlefield engine."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,9 +33,9 @@ class Unit:
     uid: str  # RFID tag UID, e.g. "04A3B2C1"
     name: str
     faction: str
-    owner: Optional[str] = None  # player name/id, useful for multiplayer
+    owner: Optional[str] = None
     points: Optional[int] = None
-    metadata: dict = field(default_factory=dict)  # wounds, keywords, whatever else you need
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
