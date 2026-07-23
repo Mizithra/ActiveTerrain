@@ -224,6 +224,8 @@ class Battlefield:
             data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_departed"}
             self._mqtt.publish(self.TOPIC_UNIT_EVENT, data)
             self._notify("unit_departed", data)
+            self._mqtt.publish(self.TOPIC_LED_CONTROL, {"uid": uid, "state": "off"})
+
 
     def _on_command(self, topic: str, payload: dict) -> None:
         """Handle commands published by the UI (e.g. manual turn increment)."""
