@@ -3,9 +3,6 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 
-// Everything in this anonymous namespace is private to this file -- none
-// of it is visible outside MqttHandler.cpp, including to main.ino. The
-// only way in or out is through the functions declared in MqttHandler.h.
 namespace {
 
   WiFiClientSecure espClient;
@@ -30,8 +27,6 @@ namespace {
     }
   }
 
-  // The ONLY function PubSubClient calls directly. It does no event-specific
-  // logic -- it just finds the matching registered handler and hands off.
   void mqttCallback(char *topicReceived, byte *payload, unsigned int length) {
     String topic = String(topicReceived);
     String message;
@@ -109,6 +104,12 @@ namespace MqttHandler {
   bool publish(const String &topic, const String &payload) {
     if (!client.connected()) return false;
     return client.publish(topic.c_str(), payload.c_str());
+  }
+
+  void pump() {
+    if (client.connected()) {
+      client.loop();
+    }
   }
 
 }

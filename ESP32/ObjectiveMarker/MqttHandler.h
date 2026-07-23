@@ -25,4 +25,10 @@ namespace MqttHandler {
   // Returns false if not connected or if the underlying publish failed.
   bool publish(const String &topic, const String &payload);
 
+  // Services the underlying MQTT client (keepalive ping, incoming message
+  // processing) WITHOUT attempting reconnects. Intended to be called
+  // periodically from inside a long blocking handler (like registration
+  // mode) so the connection doesn't time out while you wait on hardware.
+  void pump();
+
 }

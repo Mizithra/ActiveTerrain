@@ -145,6 +145,7 @@ void setup() {
   MqttHandler::registerTopicHandler(LED_TOPIC, handle_led_event);
   MqttHandler::registerTopicHandler(OLED_TOPIC, handle_oled_event);
   MqttHandler::registerTopicHandler(AUDIO_TOPIC, handle_audio_event);
+  MqttHandler::registerTopicHandler(REGISTER_START_TOPIC, handle_register_start_event); 
 
   if (!nfc.begin()) {
     Serial.println("Didn't find PN532 board");
