@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.local/schemas/theme.schema.json",
+
+  "title": "Theme / Game Mode Configuration",
+
+  "description": "Game logic + flavor for one scenario (reactor meltdown, arms deal, etc). Contains NO pin numbers and NO MQTT broker connection info on purpose: physical wiring lives in hardware-rig.schema.json (one shared rig file), and the MQTT client/connection is already owned by ActiveTerrain's existing Python config. This file only needs to (a) say which rig hardware it's borrowing and under what narrative name, (b) say what runtime state to track, and (c) say what happens when which MQTT topics fire. Load order: engine loads ONE rig.json (rarely changes) + ONE theme file (changes per scenario), resolves hardware_aliases against the rig, then starts listening for the topics referenced in events[].trigger.",
+
+  "type": "object",
+  "required": ["meta", "hardware_aliases", "events"],
+  "additionalProperties": false,
+
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "required": ["id", "name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "compatible_rig": {
+          "type": "string",
+          "description": "Should match a hardware-rig meta.rig_id. Not enforced by this schema (a theme can validly run on more than one rig) - it's a hint your loader can check and warn on if mismatched."
+        },
+        "_comment": { "type": "string" }
+      }
+    },
+
+    "hardware_aliases": {
+      "type": "object",
+      "description": "Maps the narrative/semantic names used below in events[].actions[].target to physical ids from the hardware rig file (rig.json leds[].id / oled_screens[].id / audio_outputs[].id / haptics[].id). This is THE file-to-file link: every value here must exist as an id somewhere in the rig you're pairing this theme with. Keeping this as one flat block at the top makes it easy to eyeball 'does this theme's hardware wishlist fit the rig I actually built'.",
+      "additionalProperties": { "type": "string" },
+      "minProperties": 1
+    },
+
+    "state": {
+      "type": "array",
+      "description": "Named runtime variables the engine maintains across events - counters, sliding windows, timers. This is what turns 'more than 1 objective taken in the last 5 minutes' into config instead of hardcoded logic.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["counter", "sliding_window_counter", "value", "timer", "set"] },
+          "window_seconds": { "type": "integer", "description": "Required for sliding_window_counter. Entries older than this are auto-pruned." },
+          "initial_value": {},
+          "scope": { "type": "string", "enum": ["global", "per_team", "per_entity"], "default": "global" },
+          "_comment": { "type": "string" }
+        }
+      }
+    },
+
+    "events": {
+      "type": "array",
+      "description": "The rules: trigger -> conditions (all must pass) -> actions (fire in order).",
+      "items": { "$ref": "#/definitions/eventRule" }
+    }
+  },
+
+  "definitions": {
+
+    "eventRule": {
+      "type": "object",
+      "required": ["id", "trigger", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string", "description": "Not optional in spirit, even though the schema allows omitting it - future you will thank present you." },
+        "enabled": { "type": "boolean", "default": true },
+
+        "trigger": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["mqtt_topic", "state_change", "interval"] },
+            "topic": {
+              "type": "string",
+              "description": "Plain MQTT topic string/wildcard pattern, e.g. 'game/events/objective/+/status'. This is just a string your existing ActiveTerrain MQTT subscriber matches against and routes to this rule - this file does not open its own connection."
+            },
+            "topic_vars": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Names assigned to '+' wildcard segments in order, e.g. ['objective_id']. Available in conditions/actions as trigger.<name>."
+            },
+            "state_id": { "type": "string" },
+            "interval_seconds": { "type": "integer" }
+          }
+        },
+
+        "conditions": {
+          "type": "array",
+          "description": "Flat AND list, evaluated left/op/right. left references payload.<field>, trigger.<var>, or state.<id>.count / .value.",
+          "items": {
+            "type": "object",
+            "required": ["left", "op", "right"],
+            "additionalProperties": false,
+            "properties": {
+              "left": { "type": "string" },
+              "op": { "type": "string", "enum": ["==", "!=", ">", ">=", "<", "<=", "in", "not_in"] },
+              "right": {}
+            }
+          }
+        },
+
+        "cooldown_seconds": {
+          "type": "number",
+          "description": "Suppress re-firing this rule for N seconds after it fires, per unique trigger key."
+        },
+
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/action" }
+        }
+      }
+    },
+
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["led", "audio", "oled", "vibrate", "mqtt_publish", "state_update"] }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "led" } } },
+          "then": {
+            "required": ["target", "mode"],
+            "properties": {
+              "target": { "type": "string", "description": "A key from hardware_aliases (may be templated, e.g. 'objective_{{trigger.objective_id}}_led')." },
+              "mode": { "type": "string", "enum": ["on", "off", "blink", "pulse"] },
+              "color": { "type": "string", "description": "Hex or named color, may be templated e.g. '{{payload.team_color}}'. Ignored if the target LED's supports_rgb is false in the rig." },
+              "duration_ms": { "type": "integer", "description": "Omit for 'stays until told otherwise'." },
+              "blink_rate_ms": { "type": "integer" }
+            }
+          }
+        },
+        { "if": { "properties": { "type": { "const": "audio" } } },
+          "then": {
+            "required": ["target", "file"],
+            "properties": {
+              "target": { "type": "string" },
+              "file": { "type": "string" },
+              "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+              "interrupt": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        { "if": { "properties": { "type": { "const": "oled" } } },
+          "then": {
+            "required": ["target", "text"],
+            "properties": {
+              "target": { "type": "string" },
+              "text": { "type": "string", "description": "Supports {{payload.field}} / {{trigger.var}} templating." },
+              "duration_ms": { "type": "integer", "description": "Omit to persist until the next oled action on this target." }
+            }
+          }
+        },
+        { "if": { "properties": { "type": { "const": "vibrate" } } },
+          "then": {
+            "required": ["target"],
+            "properties": {
+              "target": { "type": "string" },
+              "pattern": { "type": "array", "items": { "type": "integer" }, "description": "ms on/off pairs, e.g. [200,100,200]." }
+            }
+          }
+        },
+        { "if": { "properties": { "type": { "const": "mqtt_publish" } } },
+          "then": {
+            "required": ["topic", "payload"],
+            "properties": {
+              "topic": { "type": "string", "description": "Handed off to the existing ActiveTerrain MQTT client to publish - this file doesn't touch the socket." },
+              "payload": {}
+            }
+          }
+        },
+        { "if": { "properties": { "type": { "const": "state_update" } } },
+          "then": {
+            "required": ["state_id", "operation"],
+            "properties": {
+              "state_id": { "type": "string" },
+              "operation": { "type": "string", "enum": ["increment", "decrement", "set", "push_timestamp", "reset"] },
+              "value": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "id": "arms-deal",
+    "name": "Arms Deal",
+    "description": "Two-team objective control themed around securing weapons cache drop points during a black-market exchange.",
+    "version": "1.0.0",
+    "compatible_rig": "field-rig-v1",
+    "_comment": "Same rig as reactor-meltdown, same rule ids and trigger shapes - only meta, hardware_aliases flavor names, audio files, and OLED text changed. That's the reskin lever: mechanics live in events[], flavor lives in the leaf values."
+  },
+
+  "hardware_aliases": {
+    "objective_1_led": "led_1",
+    "objective_2_led": "led_2",
+    "objective_1_oled": "oled_1",
+    "objective_2_oled": "oled_2",
+    "main_speaker": "speaker_1",
+    "briefcase_led": "led_3",
+    "briefcase_motor": "haptic_2"
+  },
+
+  "state": [
+    {
+      "id": "objective_takeovers",
+      "type": "sliding_window_counter",
+      "window_seconds": 300,
+      "scope": "global"
+    }
+  ],
+
+  "events": [
+
+    {
+      "id": "objective_standing_led",
+      "description": "A crew holds a drop point uncontested -> steady LED in their color.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "standing" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "on", "color": "{{payload.team_color}}" },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "DROP {{trigger.objective_id}}\nHOLDING\n{{payload.team_name}}" }
+      ]
+    },
+
+    {
+      "id": "objective_contested",
+      "description": "Both crews on the same drop point -> red blinking LED, firefight sting.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "contested" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "blink", "color": "#FF0000", "blink_rate_ms": 200 },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "DROP {{trigger.objective_id}}\n!! FIREFIGHT !!" },
+        { "type": "audio", "target": "main_speaker", "file": "sfx/gunfire_short.wav", "volume": 0.8 }
+      ]
+    },
+
+    {
+      "id": "objective_secured",
+      "description": "Cache claimed -> deal confirmed sting, LED, OLED, and log the takeover for the escalation rule below.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "secured" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "on", "color": "{{payload.team_color}}" },
+        { "type": "audio", "target": "main_speaker", "file": "sfx/deal_confirmed.wav", "volume": 0.9, "interrupt": true },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "DROP {{trigger.objective_id}}\nCACHE CLAIMED\n{{payload.team_name}}" },
+        { "type": "state_update", "state_id": "objective_takeovers", "operation": "push_timestamp" }
+      ]
+    },
+
+    {
+      "id": "clashing_teams_sound",
+      "description": "Both crews walk onto the same cache at once -> shouting/scuffle sting.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/terrain/+/collision"
+      },
+      "actions": [
+        { "type": "audio", "target": "main_speaker", "file": "sfx/scuffle_shouting.wav", "volume": 1.0, "interrupt": true }
+      ]
+    },
+
+    {
+      "id": "hot_streak_vibrate",
+      "description": "More than 1 cache claimed in the last 5 minutes -> the briefcase prop buzzes and glows gold, signaling the deal is heating up.",
+      "trigger": { "type": "interval", "interval_seconds": 10 },
+      "conditions": [
+        { "left": "state.objective_takeovers.count", "op": ">", "right": 1 }
+      ],
+      "cooldown_seconds": 30,
+      "actions": [
+        { "type": "vibrate", "target": "briefcase_motor", "pattern": [150, 80, 150, 80, 150, 80, 150] },
+        { "type": "led", "target": "briefcase_led", "mode": "pulse", "color": "#FFD700", "duration_ms": 3000 }
+      ]
+    }
+  ]
+}

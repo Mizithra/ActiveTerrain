@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "id": "reactor-meltdown",
+    "name": "Reactor Meltdown",
+    "description": "Two-team objective control themed around stabilizing/sabotaging a reactor core.",
+    "version": "1.0.0",
+    "compatible_rig": "field-rig-v1",
+    "_comment": "This theme was built against field-rig-v1 (see hardware/rig.json). It only needs 2 objective LEDs, 2 OLEDs, 1 speaker, and 1 haptic - it deliberately leaves led_3/haptic_2 aliased in below even though it only uses one of the two haptics, so a future 'sabotage' rule has somewhere to plug in."
+  },
+
+  "hardware_aliases": {
+    "objective_1_led": "led_1",
+    "objective_2_led": "led_2",
+    "objective_1_oled": "oled_1",
+    "objective_2_oled": "oled_2",
+    "main_speaker": "speaker_1",
+    "alarm_led": "led_3",
+    "control_console_motor": "haptic_1"
+  },
+
+  "state": [
+    {
+      "id": "objective_takeovers",
+      "type": "sliding_window_counter",
+      "window_seconds": 300,
+      "scope": "global",
+      "_comment": "Every time an objective flips to 'secured', we push a timestamp here (see the objective_secured rule below). The meltdown_warning_vibrate rule below polls .count on a 10s interval trigger."
+    }
+  ],
+
+  "events": [
+
+    {
+      "id": "objective_standing_led",
+      "description": "A team holds the objective uncontested -> steady LED in their color, OLED shows who's stabilizing it.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "standing" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "on", "color": "{{payload.team_color}}" },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "REACTOR {{trigger.objective_id}}\nSTABILIZING\nCrew: {{payload.team_name}}" }
+      ]
+    },
+
+    {
+      "id": "objective_contested",
+      "description": "Both teams present on the same objective -> amber blinking LED, contested OLED message.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "contested" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "blink", "color": "#FFAA00", "blink_rate_ms": 300 },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "REACTOR {{trigger.objective_id}}\n!! CONTESTED !!\nCORE UNSTABLE" }
+      ]
+    },
+
+    {
+      "id": "objective_secured",
+      "description": "A team finishes taking the objective -> confirmation flash + sound + OLED, and logs the takeover timestamp for the escalation rule below.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/objective/+/status",
+        "topic_vars": ["objective_id"]
+      },
+      "conditions": [
+        { "left": "payload.status", "op": "==", "right": "secured" }
+      ],
+      "actions": [
+        { "type": "led", "target": "objective_{{trigger.objective_id}}_led", "mode": "on", "color": "{{payload.team_color}}" },
+        { "type": "audio", "target": "main_speaker", "file": "sfx/reactor_stabilized.wav", "volume": 0.9, "interrupt": true },
+        { "type": "oled", "target": "objective_{{trigger.objective_id}}_oled", "text": "REACTOR {{trigger.objective_id}}\nSECURED\n{{payload.team_name}}" },
+        { "type": "state_update", "state_id": "objective_takeovers", "operation": "push_timestamp" }
+      ]
+    },
+
+    {
+      "id": "clashing_teams_sound",
+      "description": "A team moves onto a terrain piece another team already occupies -> clash sting, no visual side needed.",
+      "trigger": {
+        "type": "mqtt_topic",
+        "topic": "game/events/terrain/+/collision"
+      },
+      "actions": [
+        { "type": "audio", "target": "main_speaker", "file": "sfx/reactor_clash_alarm.wav", "volume": 1.0, "interrupt": true }
+      ]
+    },
+
+    {
+      "id": "meltdown_warning_vibrate",
+      "description": "More than 1 objective taken in the last 5 minutes -> pulse the console motor + klaxon sting. Checked every 10s so it reacts quickly without needing a state_change trigger.",
+      "trigger": { "type": "interval", "interval_seconds": 10 },
+      "conditions": [
+        { "left": "state.objective_takeovers.count", "op": ">", "right": 1 }
+      ],
+      "cooldown_seconds": 30,
+      "actions": [
+        { "type": "vibrate", "target": "control_console_motor", "pattern": [200, 100, 200, 100, 200] },
+        { "type": "audio", "target": "main_speaker", "file": "sfx/meltdown_klaxon.wav", "volume": 0.7 }
+      ]
+    }
+  ]
+}

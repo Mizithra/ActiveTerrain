@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.local/schemas/hardware-rig.schema.json",
+
+  "title": "Hardware Rig Configuration",
+
+  "description": "Describes the PHYSICAL build: every LED, OLED, speaker, and haptic device that is actually wired up, and what pin/address/bus it lives on. This file has no game logic in it at all - it doesn't know what a 'team' or an 'objective' is. It only knows 'there is an LED at gpio17'. Theme files (see theme.schema.json) attach meaning to these physical ids via hardware_aliases. You should only need to touch this file when you physically rewire something.",
+
+  "type": "object",
+  "required": ["meta", "leds", "oled_screens", "audio_outputs", "haptics"],
+  "additionalProperties": false,
+
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "required": ["rig_id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "rig_id": {
+          "type": "string",
+          "description": "Stable identifier for this physical build, e.g. 'field-rig-v1'. Theme files can reference this in their own meta.compatible_rig as a sanity check - if it doesn't match, your engine can warn at load time that a theme was designed for a different rig."
+        },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "_comment": { "type": "string", "description": "Free-text note, ignored by the engine. JSON has no real comment syntax, so this is the workaround." }
+      }
+    },
+
+    "leds": {
+      "type": "array",
+      "description": "One entry per physical LED (or addressable pixel). 'id' is the stable physical name every theme's hardware_aliases will point at.",
+      "items": {
+        "type": "object",
+        "required": ["id", "device_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable physical id, e.g. 'led_1'. Keep these theme-neutral (not 'alarm_led' or 'briefcase_led') since one physical LED gets reused for different narrative roles across themes."
+          },
+          "device_id": {
+            "type": "string",
+            "description": "Where your code actually finds this thing: a GPIO pin, an addressable-strip index, a driver-board channel, etc. Format is whatever your firmware/driver layer expects - this schema doesn't constrain it."
+          },
+          "supports_rgb": { "type": "boolean", "default": true },
+          "location_note": {
+            "type": "string",
+            "description": "Human-readable physical placement, e.g. 'North table, Objective A marker'. Purely documentation - helps you 5 themes from now when you forget what led_3 is."
+          },
+          "_comment": { "type": "string" }
+        }
+      }
+    },
+
+    "oled_screens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "device_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "device_id": { "type": "string", "description": "e.g. an I2C address like '0x3C', or a bus+address pair however your driver expects it." },
+          "width_px": { "type": "integer" },
+          "height_px": { "type": "integer" },
+          "location_note": { "type": "string" },
+          "_comment": { "type": "string" }
+        }
+      }
+    },
+
+    "audio_outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "device_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "device_id": { "type": "string", "description": "ALSA device name, sound card index, or whatever your audio backend takes." },
+          "location_note": { "type": "string" },
+          "_comment": { "type": "string" }
+        }
+      }
+    },
+
+    "haptics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "device_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "device_id": { "type": "string" },
+          "location_note": { "type": "string" },
+          "_comment": { "type": "string" }
+        }
+      }
+    }
+  }
+}
