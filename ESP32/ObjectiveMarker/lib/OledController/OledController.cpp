@@ -6,7 +6,7 @@ void OledController::begin(const String &objectiveTopic) {
 }
 
 void OledController::handleMqttEvent(const String &topic, const String &payload) {
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, payload)) {
     Serial.println("OledController: failed to parse JSON payload");
     return;

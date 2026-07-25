@@ -26,7 +26,7 @@ void RegistrationController::handleStart(const String &topic, const String &payl
 
   _led.turnOff();
 
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   if (success) {
     char uidStr[15];
     char *p = uidStr;

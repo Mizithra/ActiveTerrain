@@ -6,7 +6,7 @@ void AudioController::begin(const String &objectiveTopic) {
 }
 
 void AudioController::handleMqttEvent(const String &topic, const String &payload) {
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, payload)) {
     Serial.println("AudioController: failed to parse JSON payload");
     return;

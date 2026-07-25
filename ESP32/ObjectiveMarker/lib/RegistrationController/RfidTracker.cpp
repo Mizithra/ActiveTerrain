@@ -34,7 +34,7 @@ RfidTracker::CardRecord *RfidTracker::findOrCreate(const char *uid) {
 }
 
 String RfidTracker::makePayload(const char *uid) const {
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   doc["timestamp"] = millis();
   doc["uid"] = uid;
   String out;

@@ -16,7 +16,7 @@ void LedController::turnOff() {
 }
 
 void LedController::handleMqttEvent(const String &topic, const String &payload) {
-  StaticJsonDocument<128> doc;
+  JsonDocument doc;
   if (deserializeJson(doc, payload)) {
     Serial.println("LedController: failed to parse JSON payload");
     return;
