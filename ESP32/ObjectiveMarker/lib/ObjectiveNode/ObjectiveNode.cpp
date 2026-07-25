@@ -35,9 +35,7 @@ void ObjectiveNode::begin(const char *wifiSsid, const char *wifiPassword,
   _mqtt.registerHandler(_led.topic(), [this](const String &t, const String &p) { _led.handleMqttEvent(t, p); });
   _mqtt.registerHandler(_oled.topic(), [this](const String &t, const String &p) { _oled.handleMqttEvent(t, p); });
   _mqtt.registerHandler(_audio.topic(), [this](const String &t, const String &p) { _audio.handleMqttEvent(t, p); });
-  Serial.println("Registering handlestart on: " + _registration.startTopic());
   _mqtt.registerHandler(_registration.startTopic(), [this](const String &t, const String &p) { _registration.handleStart(t, p); });
-  Serial.println("Registering handleend on: " + _registration.endTopic());
   _mqtt.registerHandler(_registration.endTopic(), [this](const String &t, const String &p) { _registration.handleEnd(t, p); });
 
   if (!_nfc.begin()) {
