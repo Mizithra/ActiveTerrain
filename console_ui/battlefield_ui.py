@@ -7,8 +7,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Button, Footer, Header, Log, Static
 
-import battlefieldengine.mqtt_client as mqtt_client_module
-from battlefieldengine.mqtt_adapter import MQTTAdapter
+from battlefieldengine.MqttClient import MqttClient
 from battlefieldengine.Battlefield import TOPIC_COMMAND, TOPIC_TURN_STATE, TOPIC_UNIT_EVENT
 from RegistryManager import RegistryManager
 from RegistrationScreen import RegistrationScreen
@@ -71,9 +70,8 @@ class BattlefieldUI(App):
 
     def __init__(self):
         super().__init__()
-        raw_client = mqtt_client_module.create_mqtt_client()
-        raw_client.loop_start()
-        self.mqtt = MQTTAdapter(raw_client)
+        self.mqtt = MqttClient()
+        self.mqtt.start()
         self.turn = 1
         self.phase = "command"
         self.registry = RegistryManager(UNITS_PATH, TAGS_PATH, UNIT_REGISTRY_EXPORT)
@@ -83,7 +81,7 @@ class BattlefieldUI(App):
         self.mqtt.subscribe(TOPIC_UNIT_EVENT, self._on_unit_event)
 
     def on_unmount(self) -> None:
-        self.mqtt.loop_stop()
+        self.mqtt.stop()
 
     def compose(self) -> ComposeResult:
         yield Header()
