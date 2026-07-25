@@ -11,8 +11,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from battlefieldengine import mqtt_client as mqtt_client_module
-from battlefieldengine.mqtt_adapter import MQTTAdapter
+from battlefieldengine.MqttClient import MqttClient
 from battlefieldengine.Battlefield import Battlefield, UnitRegistry
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ def setup_logging(config: dict) -> None:
 class GameServer:
     def __init__(self, config: dict):
         self.config = config
-        self.mqtt: Optional[MQTTAdapter] = None
+        self.mqtt: Optional[MqttClient] = None
         self.battlefield: Optional[Battlefield] = None
 
     def setup(self) -> None:
@@ -55,10 +54,10 @@ class GameServer:
             Path(self.config["objective_roles_path"]),
         )
 
-    def _build_mqtt_client(self) -> MQTTAdapter:
-        raw_client = mqtt_client_module.create_mqtt_client()
-        raw_client.loop_start()
-        return MQTTAdapter(raw_client)
+    def _build_mqtt_client(self) -> MqttClient:
+        client = MqttClient()
+        client.start()
+        return client
 
     def _build_battlefield(self) -> Battlefield:
         registry = UnitRegistry(Path(self.config["unit_registry_path"]))
@@ -82,7 +81,7 @@ class GameServer:
 
     def shutdown(self) -> None:
         if self.mqtt:
-            self.mqtt.loop_stop()
+            self.mqtt.stop()
         logger.info("Server stopped.")
 
 

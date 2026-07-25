@@ -7,8 +7,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Button, Footer, Header, Log, Static
 
-import battlefieldengine.mqtt_client as mqtt_client_module
-from battlefieldengine.mqtt_adapter import MQTTAdapter
+from battlefieldengine.MqttClient import MqttClient
 from battlefieldengine.Battlefield import TOPIC_COMMAND, TOPIC_TURN_STATE, TOPIC_UNIT_EVENT
 from RegistryManager import RegistryManager
 from RegistrationScreen import RegistrationScreen
@@ -18,12 +17,15 @@ logger = logging.getLogger(__name__)
 # The registration station's OBJECTIVE_TOPIC -- point this at whichever
 # ESP32 is doing registration duty (a spare device, or temporarily one of
 # your objective markers, flashed with the registration handler).
-REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain"
+REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain/registration"
 REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
 REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
+REGISTER_END_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_end"
 
-UNITS_PATH = Path("battlefield_sim/configurations/Units.json")
-TAGS_PATH = Path("battlefield_sim/configurations/TagAssignments.json")
+# Store registration files where the backend expects them so saves are visible to the server
+UNITS_PATH = Path("battlefieldengine/battlefieldengine/configurations/Units.json")
+TAGS_PATH = Path("battlefieldengine/battlefieldengine/configurations/TagAssignments.json")
+UNIT_REGISTRY_EXPORT = Path("battlefieldengine/battlefieldengine/configurations/UnitRegistry.json")
 
 
 class BattlefieldUI(App):
@@ -68,19 +70,18 @@ class BattlefieldUI(App):
 
     def __init__(self):
         super().__init__()
-        raw_client = mqtt_client_module.create_mqtt_client()
-        raw_client.loop_start()
-        self.mqtt = MQTTAdapter(raw_client)
+        self.mqtt = MqttClient()
+        self.mqtt.start()
         self.turn = 1
         self.phase = "command"
-        self.registry = RegistryManager(UNITS_PATH, TAGS_PATH)
+        self.registry = RegistryManager(UNITS_PATH, TAGS_PATH, UNIT_REGISTRY_EXPORT)
 
     def on_mount(self) -> None:
         self.mqtt.subscribe(TOPIC_TURN_STATE, self._on_turn_state)
         self.mqtt.subscribe(TOPIC_UNIT_EVENT, self._on_unit_event)
 
     def on_unmount(self) -> None:
-        self.mqtt.loop_stop()
+        self.mqtt.stop()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -112,7 +113,11 @@ class BattlefieldUI(App):
     def action_open_registration(self) -> None:
         self.push_screen(
             RegistrationScreen(
-                self.mqtt, self.registry, REGISTER_START_TOPIC, REGISTER_RESULT_TOPIC
+                self.mqtt,
+                self.registry,
+                REGISTER_START_TOPIC,
+                REGISTER_RESULT_TOPIC,
+                REGISTER_END_TOPIC,
             )
         )
 
