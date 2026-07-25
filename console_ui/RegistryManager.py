@@ -39,7 +39,7 @@ class TagAssignment:
 
 
 class RegistryManager:
-    def __init__(self, units_path: Path, tags_path: Path, unit_registry_export_path: Path | None = Path("battlefieldengine/configurations/UnitRegistry.json")):
+    def __init__(self, units_path: Path, tags_path: Path, unit_registry_export_path: Path | None = Path("battlefieldengine/battlefieldengine/configurations/UnitRegistry.json")):
         """units_path: path to Units.json
         tags_path: path to TagAssignments.json
         unit_registry_export_path: optional path to write the merged UID->unit metadata

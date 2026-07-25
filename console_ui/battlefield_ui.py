@@ -23,8 +23,10 @@ REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
 REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
 REGISTER_END_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_end"
 
-UNITS_PATH = Path("battlefield_sim/configurations/Units.json")
-TAGS_PATH = Path("battlefield_sim/configurations/TagAssignments.json")
+# Store registration files where the backend expects them so saves are visible to the server
+UNITS_PATH = Path("battlefieldengine/battlefieldengine/configurations/Units.json")
+TAGS_PATH = Path("battlefieldengine/battlefieldengine/configurations/TagAssignments.json")
+UNIT_REGISTRY_EXPORT = Path("battlefieldengine/battlefieldengine/configurations/UnitRegistry.json")
 
 
 class BattlefieldUI(App):
@@ -74,7 +76,7 @@ class BattlefieldUI(App):
         self.mqtt = MQTTAdapter(raw_client)
         self.turn = 1
         self.phase = "command"
-        self.registry = RegistryManager(UNITS_PATH, TAGS_PATH)
+        self.registry = RegistryManager(UNITS_PATH, TAGS_PATH, UNIT_REGISTRY_EXPORT)
 
     def on_mount(self) -> None:
         self.mqtt.subscribe(TOPIC_TURN_STATE, self._on_turn_state)
