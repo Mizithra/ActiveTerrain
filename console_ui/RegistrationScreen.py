@@ -145,7 +145,19 @@ class RegistrationScreen(Screen):
 
     def _on_scan_result(self, topic: str, payload: dict) -> None:
         # Fires on the MQTT network thread -- marshal back onto the app.
-        self.call_from_thread(self._handle_scan_result, payload)
+        # On a non-Textual thread, `self.app` may not be available via the active
+        # app contextvar, so use the internal _app reference when possible.
+        app = getattr(self, "_app", None)
+        if app is None:
+            try:
+                app = self.app
+            except Exception:
+                app = None
+
+        if app is not None:
+            app.call_from_thread(self._handle_scan_result, payload)
+        else:
+            self._handle_scan_result(payload)
 
     def _handle_scan_result(self, payload: dict) -> None:
         uid = payload.get("uid")
