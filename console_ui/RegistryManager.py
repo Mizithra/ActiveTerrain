@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import logging
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
@@ -38,9 +39,15 @@ class TagAssignment:
 
 
 class RegistryManager:
-    def __init__(self, units_path: Path, tags_path: Path):
+    def __init__(self, units_path: Path, tags_path: Path, unit_registry_export_path: Path | None = Path("battlefieldengine/configurations/UnitRegistry.json")):
+        """units_path: path to Units.json
+        tags_path: path to TagAssignments.json
+        unit_registry_export_path: optional path to write the merged UID->unit metadata
+            file that the backend expects (UnitRegistry.json). If None, no export is written.
+        """
         self.units_path = units_path
         self.tags_path = tags_path
+        self.unit_registry_export_path = unit_registry_export_path
         self.units: dict[str, UnitEntry] = {}
         self.tags: dict[str, TagAssignment] = {}
         self._load()
@@ -55,13 +62,43 @@ class RegistryManager:
                 raw = json.load(f)
             self.tags = {tag: TagAssignment(**data) for tag, data in raw.items()}
 
+    def _build_unit_registry_export(self) -> dict:
+        """Build the merged mapping expected by the backend UnitRegistry.json:
+        { "<tag_uid>": {"name": ..., "faction": ..., "owner": ...}, ... }
+        Tags that reference missing units are omitted with a warning.
+        """
+        export: dict[str, dict] = {}
+        for tag_uid, assignment in self.tags.items():
+            unit = self.units.get(assignment.unit_id)
+            if unit is None:
+                # Skip inconsistent entries; keep a helpful hint for operators.
+                logger = logging.getLogger(__name__)
+                logger.warning("RegistryManager: tag %s references missing unit %s", tag_uid, assignment.unit_id)
+                continue
+            export[tag_uid] = {
+                "name": unit.name,
+                "faction": unit.faction,
+                # owner may be None; include it explicitly (will be null in JSON)
+                "owner": unit.owner,
+            }
+        return export
+
     def save(self) -> None:
+        # Ensure parent folders exist for the two primary files.
         self.units_path.parent.mkdir(parents=True, exist_ok=True)
         self.tags_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.units_path, "w") as f:
             json.dump({uid: asdict(u) for uid, u in self.units.items()}, f, indent=2)
         with open(self.tags_path, "w") as f:
             json.dump({tag: asdict(t) for tag, t in self.tags.items()}, f, indent=2)
+
+        # Optionally export a merged UnitRegistry.json that maps UID->unit metadata
+        if self.unit_registry_export_path is not None:
+            export = self._build_unit_registry_export()
+            # Create parent dir and write the file
+            self.unit_registry_export_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.unit_registry_export_path, "w") as f:
+                json.dump(export, f, indent=2)
 
     def find_unit_id_by_name(self, name: str) -> Optional[str]:
         for unit_id, unit in self.units.items():
