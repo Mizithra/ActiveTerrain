@@ -19,7 +19,7 @@ public:
   void publishActive();   // expire stale tags, publish due heartbeats
 
   // Fires exactly once, the moment the tracker goes from "something
-  // present" to "nothing present" -- e.g. wire to LedController::turnOff.
+  // present" to "nothing present" -- e.g. wire to LedController::ledOff.
   void onAllTagsExpired(std::function<void()> callback) { _onAllTagsExpired = callback; }
 
 private:

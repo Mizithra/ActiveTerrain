@@ -5,13 +5,14 @@ RegistrationController::RegistrationController(Adafruit_PN532 &nfc, MqttRouter &
   : _nfc(nfc), _mqtt(mqtt), _led(led) {}
 
 void RegistrationController::begin(const String &objectiveTopic) {
-  _startTopic = objectiveTopic + "/register_start";
-  _resultTopic = objectiveTopic + "/register_result";
+  String base_registration_topic = "battlefield/terrain/registration";
+  _startTopic = base_registration_topic + "/register_start";
+  _resultTopic = base_registration_topic + "/register_result";
 }
 
 void RegistrationController::handleStart(const String &topic, const String &payload) {
   Serial.println("RegistrationController: entering blocking scan");
-  _led.turnOn();
+  _led.ledOn();
 
   uint8_t uid[7], uidLength = 0, success = 0;
   unsigned long start = millis(), lastPump = start;
@@ -24,7 +25,7 @@ void RegistrationController::handleStart(const String &topic, const String &payl
     }
   }
 
-  _led.turnOff();
+  _led.ledOff();
 
   JsonDocument doc;
   if (success) {

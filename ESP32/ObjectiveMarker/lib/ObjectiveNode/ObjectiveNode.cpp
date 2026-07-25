@@ -29,12 +29,13 @@ void ObjectiveNode::begin(const char *wifiSsid, const char *wifiPassword,
   _registration.begin(_objectiveTopic);
 
   // Local, immediate reaction -- doesn't wait on a backend round trip.
-  _rfid.onAllTagsExpired([this]() { _led.turnOff(); });
+  _rfid.onAllTagsExpired([this]() { _led.ledOff(); });
 
   _mqtt.begin(mqttBroker, mqttPort, mqttUsername, mqttPassword);
   _mqtt.registerHandler(_led.topic(), [this](const String &t, const String &p) { _led.handleMqttEvent(t, p); });
   _mqtt.registerHandler(_oled.topic(), [this](const String &t, const String &p) { _oled.handleMqttEvent(t, p); });
   _mqtt.registerHandler(_audio.topic(), [this](const String &t, const String &p) { _audio.handleMqttEvent(t, p); });
+  Serial.println("Registering handlestart on: " + _registration.startTopic());
   _mqtt.registerHandler(_registration.startTopic(), [this](const String &t, const String &p) { _registration.handleStart(t, p); });
 
   if (!_nfc.begin()) {
