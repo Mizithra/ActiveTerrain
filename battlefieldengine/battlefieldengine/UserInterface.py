@@ -11,6 +11,11 @@ from battlefieldengine.Battlefield import TOPIC_COMMAND, TOPIC_TURN_STATE, TOPIC
 from RegistryManager import RegistryManager
 from RegistrationScreen import RegistrationScreen
 
+REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain/registration"
+REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
+REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
+REGISTER_END_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_end"
+
 logger = logging.getLogger(__name__)
 
 
@@ -105,7 +110,11 @@ class BattlefieldUI(App):
     def action_open_registration(self) -> None:
         self.push_screen(
             RegistrationScreen(
-                self.mqtt, self.registry, REGISTER_START_TOPIC, REGISTER_RESULT_TOPIC
+                self.mqtt,
+                self.registry,
+                REGISTER_START_TOPIC,
+                REGISTER_RESULT_TOPIC,
+                REGISTER_END_TOPIC,
             )
         )
 

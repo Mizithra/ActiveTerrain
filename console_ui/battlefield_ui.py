@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain/registration"
 REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
 REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
+REGISTER_END_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_end"
 
 UNITS_PATH = Path("battlefield_sim/configurations/Units.json")
 TAGS_PATH = Path("battlefield_sim/configurations/TagAssignments.json")
@@ -112,7 +113,11 @@ class BattlefieldUI(App):
     def action_open_registration(self) -> None:
         self.push_screen(
             RegistrationScreen(
-                self.mqtt, self.registry, REGISTER_START_TOPIC, REGISTER_RESULT_TOPIC
+                self.mqtt,
+                self.registry,
+                REGISTER_START_TOPIC,
+                REGISTER_RESULT_TOPIC,
+                REGISTER_END_TOPIC,
             )
         )
 

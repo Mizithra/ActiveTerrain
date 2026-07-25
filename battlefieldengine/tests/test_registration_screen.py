@@ -17,7 +17,9 @@ def _load_registration_screen_module():
 
 def test_registration_screen_marshals_mqtt_callback_to_app():
     module = _load_registration_screen_module()
-    screen = module.RegistrationScreen(SimpleNamespace(), SimpleNamespace(), "topic/start", "topic/result")
+    screen = module.RegistrationScreen(
+        SimpleNamespace(), SimpleNamespace(), "topic/start", "topic/result", "topic/end"
+    )
     captured = {}
 
     def fake_handle_scan_result(payload):
@@ -33,7 +35,9 @@ def test_registration_screen_marshals_mqtt_callback_to_app():
 
 def test_registration_screen_handles_callback_without_attached_app():
     module = _load_registration_screen_module()
-    screen = module.RegistrationScreen(SimpleNamespace(), SimpleNamespace(), "topic/start", "topic/result")
+    screen = module.RegistrationScreen(
+        SimpleNamespace(), SimpleNamespace(), "topic/start", "topic/result", "topic/end"
+    )
     captured = {}
 
     def fake_handle_scan_result(payload):
@@ -45,3 +49,23 @@ def test_registration_screen_handles_callback_without_attached_app():
     screen._on_scan_result("topic/result", {"uid": "DEF"})
 
     assert captured["payload"] == {"uid": "DEF"}
+
+
+def test_registration_screen_sends_end_message_on_finish():
+    module = _load_registration_screen_module()
+    published = {}
+
+    class FakeMqtt:
+        def publish(self, topic, payload):
+            published["topic"] = topic
+            published["payload"] = payload
+
+    screen = module.RegistrationScreen(
+        FakeMqtt(), SimpleNamespace(save=lambda: None), "topic/start", "topic/result", "topic/end"
+    )
+    object.__setattr__(screen, "_app", SimpleNamespace(pop_screen=lambda: None))
+
+    screen.action_finish()
+
+    assert published["topic"] == "topic/end"
+    assert published["payload"] == {"action": "end"}
