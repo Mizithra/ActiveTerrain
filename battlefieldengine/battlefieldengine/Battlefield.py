@@ -176,6 +176,7 @@ class Battlefield:
             }
             self._mqtt.publish(TOPIC_UNIT_EVENT, data)
             self._notify("unit_arrived", data)
+            terrain_node.light_on()
 
     def check_departures(self) -> None:
         """Sweep for units that haven't sent a heartbeat within the presence
@@ -194,6 +195,7 @@ class Battlefield:
             data = {"uid": uid, "name": unit.name, "faction": unit.faction, "event": "unit_departed"}
             self._mqtt.publish(TOPIC_UNIT_EVENT, data)
             self._notify("unit_departed", data)
+            self.terrain_nodes["battlefield/terrain/home_base"].light_off()
 
     def _on_command(self, topic: str, payload: dict) -> None:
         action = payload.get("action")

@@ -70,7 +70,6 @@ class TerrainNode:
                 "%s: unit %s arrived (%d unit(s) now present)",
                 self.name, reading.uid, len(self.occupying_units),
             )
-            self.light_up()
 
         # Fires on every scan, not just new arrivals -- Battlefield needs
         # the repeated heartbeats to keep its own presence-timeout logic
@@ -83,7 +82,7 @@ class TerrainNode:
         if not self.occupying_units:
             self.light_off()
 
-    def light_up(self) -> None:
+    def light_on(self) -> None:
         payload = {"state": "on"}
         if self.led_color:
             payload["color"] = self.led_color
