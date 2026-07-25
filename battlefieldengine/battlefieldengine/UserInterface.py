@@ -13,11 +13,6 @@ from RegistrationScreen import RegistrationScreen
 
 logger = logging.getLogger(__name__)
 
-# The registration station's OBJECTIVE_TOPIC -- point this at whichever
-# ESP32 is doing registration duty.
-REGISTRATION_OBJECTIVE_TOPIC = "battlefield/terrain/"
-REGISTER_START_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_start"
-REGISTER_RESULT_TOPIC = f"{REGISTRATION_OBJECTIVE_TOPIC}/register_result"
 
 UNITS_PATH = Path("battlefieldengine/configurations/Units.json")
 TAGS_PATH = Path("battlefieldengine/configurations/TagAssignments.json")
