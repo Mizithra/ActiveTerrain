@@ -14,8 +14,10 @@ public:
 
   void begin(const String &objectiveTopic);
   void handleStart(const String &topic, const String &payload);
+  void handleEnd(const String &topic, const String &payload);
 
   const String &startTopic() const { return _startTopic; }
+  const String &endTopic() const { return _endTopic; }
 
 private:
   static constexpr unsigned long TIMEOUT_MS = 30000;
@@ -27,4 +29,6 @@ private:
   LedController &_led;
   String _startTopic;
   String _resultTopic;
+  String _endTopic;
+  bool _cancelRequested;
 };

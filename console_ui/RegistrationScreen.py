@@ -81,12 +81,14 @@ class RegistrationScreen(Screen):
         registry: RegistryManager,
         register_start_topic: str,
         register_result_topic: str,
+        register_end_topic: str,
     ):
         super().__init__()
         self.mqtt = mqtt
         self.registry = registry
         self.register_start_topic = register_start_topic
         self.register_result_topic = register_result_topic
+        self.register_end_topic = register_end_topic
         self.owner = ""
         self.faction = ""
         self.pending_uid: Optional[str] = None
@@ -145,7 +147,19 @@ class RegistrationScreen(Screen):
 
     def _on_scan_result(self, topic: str, payload: dict) -> None:
         # Fires on the MQTT network thread -- marshal back onto the app.
-        self.call_from_thread(self._handle_scan_result, payload)
+        # On a non-Textual thread, `self.app` may not be available via the active
+        # app contextvar, so use the internal _app reference when possible.
+        app = getattr(self, "_app", None)
+        if app is None:
+            try:
+                app = self.app
+            except Exception:
+                app = None
+
+        if app is not None:
+            app.call_from_thread(self._handle_scan_result, payload)
+        else:
+            self._handle_scan_result(payload)
 
     def _handle_scan_result(self, payload: dict) -> None:
         uid = payload.get("uid")
@@ -209,6 +223,18 @@ class RegistrationScreen(Screen):
         else:
             proceed()
 
+    def _current_app(self):
+        app = getattr(self, "_app", None)
+        if app is not None:
+            return app
+        try:
+            return self.app
+        except Exception:
+            return None
+
     def action_finish(self) -> None:
         self.registry.save()
-        self.app.pop_screen()
+        self.mqtt.publish(self.register_end_topic, {"action": "end"})
+        app = self._current_app()
+        if app is not None:
+            app.pop_screen()
