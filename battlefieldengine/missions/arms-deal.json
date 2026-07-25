@@ -10,12 +10,9 @@
 
   "hardware_aliases": {
     "objective_1_led": "led_1",
-    "objective_2_led": "led_2",
     "objective_1_oled": "oled_1",
-    "objective_2_oled": "oled_2",
     "main_speaker": "speaker_1",
-    "briefcase_led": "led_3",
-    "briefcase_motor": "haptic_2"
+    "briefcase_motor": "haptic_1"
   },
 
   "state": [

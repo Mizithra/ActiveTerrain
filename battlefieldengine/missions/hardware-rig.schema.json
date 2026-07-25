@@ -32,7 +32,7 @@
       "description": "One entry per physical LED (or addressable pixel). 'id' is the stable physical name every theme's hardware_aliases will point at.",
       "items": {
         "type": "object",
-        "required": ["id", "device_id"],
+        "required": ["id", "device_id", "mqtt_topic"],
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -42,6 +42,10 @@
           "device_id": {
             "type": "string",
             "description": "Where your code actually finds this thing: a GPIO pin, an addressable-strip index, a driver-board channel, etc. Format is whatever your firmware/driver layer expects - this schema doesn't constrain it."
+          },
+          "mqtt_topic": {
+            "type": "string",
+            "description": "The MQTT topic to which this LED will subscribe for control messages."
           },
           "supports_rgb": { "type": "boolean", "default": true },
           "location_note": {
@@ -57,14 +61,14 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "device_id"],
+        "required": ["id", "device_id", "mqtt_topic"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "device_id": { "type": "string", "description": "e.g. an I2C address like '0x3C', or a bus+address pair however your driver expects it." },
           "width_px": { "type": "integer" },
+          "mqtt_topic": { "type": "string", "description": "The MQTT topic to which this OLED will subscribe for control messages." },
           "height_px": { "type": "integer" },
-          "location_note": { "type": "string" },
           "_comment": { "type": "string" }
         }
       }
@@ -74,11 +78,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "device_id"],
+        "required": ["id", "device_id", "mqtt_topic"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "device_id": { "type": "string", "description": "ALSA device name, sound card index, or whatever your audio backend takes." },
+          "mqtt_topic": { "type": "string", "description": "The MQTT topic to which this audio output will subscribe for control messages." },
           "location_note": { "type": "string" },
           "_comment": { "type": "string" }
         }
@@ -89,11 +94,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "device_id"],
+        "required": ["id", "device_id", "mqtt_topic"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "device_id": { "type": "string" },
+          "mqtt_topic": { "type": "string", "description": "The MQTT topic to which this haptic output will subscribe for control messages." },
           "location_note": { "type": "string" },
           "_comment": { "type": "string" }
         }

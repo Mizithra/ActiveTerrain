@@ -8,23 +8,12 @@
 
   "leds": [
     {
-      "id": "led_1",
-      "device_id": "strip0:pixel12",
-      "supports_rgb": true,
-      "location_note": "Objective A marker, north table position"
-    },
-    {
-      "id": "led_2",
-      "device_id": "strip0:pixel24",
-      "supports_rgb": true,
-      "location_note": "Objective B marker, south table position"
-    },
-    {
-      "id": "led_3",
-      "device_id": "gpio17",
+      "id": "led_test",
+      "device_id": "gpio2",
+      "mqtt_topic": "/LedControl",
       "supports_rgb": false,
-      "location_note": "Spare single-color indicator mounted on the control console. Not RGB - single color only, so themes should only ever ask this one for on/off/blink, not a specific color.",
-      "_comment": "This is the LED that plays 'alarm_led' in reactor-meltdown and 'briefcase_led' (RGB fallback: treated as amber-only) in arms-deal. Swap in an RGB module later and just flip supports_rgb to true - no theme file needs to change."
+      "location_note": "Blue Onboard LED on the ESP32.",
+      "_comment": "Onboard LED, not an external LED, For testing purposes only."
     }
   ],
 
@@ -32,16 +21,9 @@
     {
       "id": "oled_1",
       "device_id": "i2c:0x3C",
+      "mqtt_topic": "/OledControl",
       "width_px": 128,
-      "height_px": 64,
-      "location_note": "Mounted above Objective A"
-    },
-    {
-      "id": "oled_2",
-      "device_id": "i2c:0x3D",
-      "width_px": 128,
-      "height_px": 64,
-      "location_note": "Mounted above Objective B"
+      "height_px": 32
     }
   ],
 
@@ -49,6 +31,7 @@
     {
       "id": "speaker_1",
       "device_id": "audio0",
+      "mqtt_topic": "/AudioControl",
       "location_note": "Main field speaker, mounted center"
     }
   ],
@@ -57,12 +40,8 @@
     {
       "id": "haptic_1",
       "device_id": "gpio22",
+      "mqtt_topic": "/HapticControl",
       "location_note": "Motor embedded in the control console housing"
-    },
-    {
-      "id": "haptic_2",
-      "device_id": "gpio23",
-      "location_note": "Motor embedded in the spare prop (briefcase / detonator / whatever theme needs a rumbling prop)"
     }
   ]
 }

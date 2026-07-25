@@ -5,16 +5,13 @@
     "description": "Two-team objective control themed around stabilizing/sabotaging a reactor core.",
     "version": "1.0.0",
     "compatible_rig": "field-rig-v1",
-    "_comment": "This theme was built against field-rig-v1 (see hardware/rig.json). It only needs 2 objective LEDs, 2 OLEDs, 1 speaker, and 1 haptic - it deliberately leaves led_3/haptic_2 aliased in below even though it only uses one of the two haptics, so a future 'sabotage' rule has somewhere to plug in."
+    "_comment": "built against field-rig-v1."
   },
 
   "hardware_aliases": {
-    "objective_1_led": "led_1",
-    "objective_2_led": "led_2",
+    "objective_1_led": "led_test",
     "objective_1_oled": "oled_1",
-    "objective_2_oled": "oled_2",
     "main_speaker": "speaker_1",
-    "alarm_led": "led_3",
     "control_console_motor": "haptic_1"
   },
 
