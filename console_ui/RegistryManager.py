@@ -30,7 +30,7 @@ class UnitEntry:
     faction: str
     owner: Optional[str] = None
     # Optional user-provided unit name (a human-friendly or alternate name)
-    unit_name: Optional[str] = None
+    shared_name: Optional[str] = None
     # Optional numeric control value associated with the unit
     control_value: Optional[int] = None
     # Track tag UIDs assigned to this unit (migrates TagAssignments into Units.json)
@@ -92,7 +92,7 @@ class RegistryManager:
         for unit_id, unit in self.units.items():
             if unit.name.strip().lower() == name.strip().lower():
                 return unit_id
-            if unit.unit_name and unit.unit_name.strip().lower() == name.strip().lower():
+            if unit.shared_name and unit.shared_name.strip().lower() == name.strip().lower():
                 return unit_id
         return None
 
@@ -103,7 +103,7 @@ class RegistryManager:
                 return unit_id
         return None
 
-    def register_tag(self, tag_uid: str, unit_name: str, faction: str, owner: Optional[str] = None, unit_name_optional: Optional[str] = None, control_value: Optional[int] = None) -> tuple[str, bool]:
+    def register_tag(self, tag_uid: str, unit_name: str, faction: str, owner: Optional[str] = None, shared_name: Optional[str] = None, control_value: Optional[int] = None) -> tuple[str, bool]:
         """Attach tag_uid to a unit named unit_name, creating the unit if it
         doesn't exist yet, or reusing it if it does. The tag UIDs are stored
         inside the unit entry under 'tags'. Returns (unit_id, created_new_unit).
@@ -117,12 +117,12 @@ class RegistryManager:
             while unit_id in self.units:
                 unit_id = f"{base}_{counter}"
                 counter += 1
-            self.units[unit_id] = UnitEntry(name=unit_name, faction=faction, owner=owner, unit_name=unit_name_optional, control_value=control_value, tags=[tag_uid])
+            self.units[unit_id] = UnitEntry(name=unit_name, faction=faction, owner=owner, shared_name=shared_name, control_value=control_value, tags=[tag_uid])
         else:
             unit = self.units[unit_id]
             # update optional fields if provided
-            if unit_name_optional:
-                unit.unit_name = unit_name_optional
+            if shared_name:
+                unit.shared_name = shared_name
             if control_value is not None:
                 unit.control_value = control_value
             if tag_uid not in unit.tags:
