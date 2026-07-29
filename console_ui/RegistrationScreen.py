@@ -119,17 +119,20 @@ class RegistrationScreen(Screen):
             self.action_finish()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        # Submitting the primary unit name field triggers the save; optional
-        # fields are read at that time as well.
-        
-        # If the user presses Enter in the optional fields, we also treat it as a submission.
-        submittable_ids = ["unit_name_input", "shared_input", "control_value_input"]
+        submittable_ids = {"unit_name_input", "shared_input", "control_value_input"}
+        if event.input.id not in submittable_ids or not self.pending_uid:
+            return
 
-        if event.input.id in submittable_ids and self.pending_uid:
-            name = event.value.strip()
-            event.input.value = ""
-            if name:
-                self._submit_unit_name(name)
+        unit_name_input = self.query_one("#unit_name_input", Input)
+        unit_name = unit_name_input.value.strip()
+        if not unit_name:
+            self.query_one("#reg_status", Static).update(
+                "Enter the unit name before submitting."
+            )
+            unit_name_input.focus()
+            return
+
+        self._submit_unit_name(unit_name)
 
     # --- flow steps ------------------------------------------------------
     def _begin_loop(self) -> None:
@@ -149,6 +152,8 @@ class RegistrationScreen(Screen):
         self._request_scan()
 
     def _request_scan(self) -> None:
+        self.pending_uid = None
+        self._set_entry_inputs_enabled(False)
         self.query_one("#reg_status", Static).update(
             "Waiting for a tag scan (station light is on)..."
         )
@@ -175,29 +180,26 @@ class RegistrationScreen(Screen):
         status = self.query_one("#reg_status", Static)
 
         if not uid:
+            self.pending_uid = None
+            self._set_entry_inputs_enabled(False)
             status.update("Scan timed out. Requesting another attempt...")
             self._request_scan()
             return
         # Force all tags to be uppercase for consistency, since some readers may return lowercase.
         uid = uid.upper()
-        # enable inputs
-        unit_input = self.query_one("#unit_name_input", Input)
-        shared_input = self.query_one("#shared_input", Input)
-        control_input = self.query_one("#control_value_input", Input)
-        unit_input.disabled = False
-        shared_input.disabled = False
-        control_input.disabled = False
-        unit_input.focus()
+        self.pending_uid = uid
+        self._set_entry_inputs_enabled(True)
+        self.query_one("#unit_name_input", Input).focus()
 
         existing_unit_id = self.registry.get_unit_id_by_tag(uid)
         if existing_unit_id:
             existing_unit = self.registry.units.get(existing_unit_id)
             existing_name = existing_unit.name if existing_unit else existing_unit_id
             ctrl = getattr(existing_unit, "control_value", None)
-            optional_name = getattr(existing_unit, "unit_name", None)
+            shared_name = getattr(existing_unit, "shared_name", None)
             status_text = f"Tag {uid} is already registered to '{existing_name}'"
-            if optional_name:
-                status_text += f" (Unit Name: {optional_name})"
+            if shared_name:
+                status_text += f" (Shared Name: {shared_name})"
             if ctrl is not None:
                 status_text += f" (Control Value: {ctrl})"
             status_text += ". Type a unit name to reassign it, or press Escape to skip."
@@ -213,7 +215,6 @@ class RegistrationScreen(Screen):
         existing_unit_assigned = self.registry.get_unit_id_by_tag(uid)
         existing_unit_id_by_name = self.registry.find_unit_id_by_name(unit_name)
 
-        # read optional fields
         shared_input = self.query_one("#shared_input", Input)
         control_input = self.query_one("#control_value_input", Input)
         shared_name = shared_input.value.strip() or None
@@ -222,23 +223,25 @@ class RegistrationScreen(Screen):
             if control_input.value.strip():
                 control_val = int(control_input.value.strip())
         except ValueError:
-            # ignore invalid numeric input; treat as None
             control_val = None
 
         def proceed() -> None:
-            unit_id, created = self.registry.register_tag(uid, unit_name, self.faction, self.owner, shared_name=shared_name, control_value=control_val)
+            _, created = self.registry.register_tag(
+                uid,
+                unit_name,
+                self.faction,
+                self.owner,
+                shared_name=shared_name,
+                control_value=control_val,
+            )
             self.registry.save()
             note = "new unit" if created else "added to existing unit"
             self.query_one("#reg_status", Static).update(
                 f"Registered tag {uid} -> '{unit_name}' ({note})."
             )
             self.pending_uid = None
-            # disable and clear inputs
-            self.query_one("#unit_name_input", Input).disabled = True
-            self.query_one("#shared_input", Input).disabled = True
-            self.query_one("#control_value_input", Input).disabled = True
-            self.query_one("#shared_input", Input).value = ""
-            self.query_one("#control_value_input", Input).value = ""
+            self._set_entry_inputs_enabled(False)
+            self._clear_entry_values()
             self._request_scan()
 
         if existing_unit_assigned or existing_unit_id_by_name:
@@ -258,6 +261,14 @@ class RegistrationScreen(Screen):
             self.app.push_screen(ConfirmModal(message), handle_confirm)
         else:
             proceed()
+
+    def _set_entry_inputs_enabled(self, enabled: bool) -> None:
+        for input_id in ("unit_name_input", "shared_input", "control_value_input"):
+            self.query_one(f"#{input_id}", Input).disabled = not enabled
+
+    def _clear_entry_values(self) -> None:
+        for input_id in ("unit_name_input", "shared_input", "control_value_input"):
+            self.query_one(f"#{input_id}", Input).value = ""
 
     def _current_app(self):
         app = getattr(self, "_app", None)

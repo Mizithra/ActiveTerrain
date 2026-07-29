@@ -1,7 +1,5 @@
-import json
 import logging
 from pathlib import Path
-from typing import Callable
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
