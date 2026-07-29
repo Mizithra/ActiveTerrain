@@ -121,7 +121,11 @@ class RegistrationScreen(Screen):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         # Submitting the primary unit name field triggers the save; optional
         # fields are read at that time as well.
-        if event.input.id == "unit_name_input" and self.pending_uid:
+        
+        # If the user presses Enter in the optional fields, we also treat it as a submission.
+        submittable_ids = ["unit_name_input", "shared_input", "control_value_input"]
+
+        if event.input.id in submittable_ids and self.pending_uid:
             name = event.value.strip()
             event.input.value = ""
             if name:
@@ -174,8 +178,8 @@ class RegistrationScreen(Screen):
             status.update("Scan timed out. Requesting another attempt...")
             self._request_scan()
             return
-
-        self.pending_uid = uid
+        # Force all tags to be uppercase for consistency, since some readers may return lowercase.
+        uid = uid.upper()
         # enable inputs
         unit_input = self.query_one("#unit_name_input", Input)
         shared_input = self.query_one("#shared_input", Input)

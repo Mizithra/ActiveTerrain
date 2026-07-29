@@ -80,13 +80,13 @@ class RegistryManager:
         with open(self.units_path, "w") as f:
             json.dump({uid: asdict(u) for uid, u in self.units.items()}, f, indent=2)
 
-        # Optionally export a merged UnitRegistry.json that maps UID->unit metadata
-        if self.unit_registry_export_path is not None:
-            export = self._build_unit_registry_export()
-            # Create parent dir and write the file
-            self.unit_registry_export_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.unit_registry_export_path, "w") as f:
-                json.dump(export, f, indent=2)
+        # # # Optionally export a merged UnitRegistry.json that maps UID->unit metadata
+        # if self.unit_registry_export_path is not None:
+        #     export = self._build_unit_registry_export()
+        #     # Create parent dir and write the file
+        #     self.unit_registry_export_path.parent.mkdir(parents=True, exist_ok=True)
+        #     with open(self.unit_registry_export_path, "w") as f:
+        #         json.dump(export, f, indent=2)
 
     def find_unit_id_by_name(self, name: str) -> Optional[str]:
         for unit_id, unit in self.units.items():
@@ -108,10 +108,10 @@ class RegistryManager:
         doesn't exist yet, or reusing it if it does. The tag UIDs are stored
         inside the unit entry under 'tags'. Returns (unit_id, created_new_unit).
         """
-        unit_id = self.find_unit_id_by_name(unit_name)
+        unit_id = self.get_unit_id_by_tag(tag_uid)
         created_new_unit = unit_id is None
         if created_new_unit:
-            base = slugify(unit_name)
+            base = slugify(tag_uid)
             unit_id = base
             counter = 2
             while unit_id in self.units:

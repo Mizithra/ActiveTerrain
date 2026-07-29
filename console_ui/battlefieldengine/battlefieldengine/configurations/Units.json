@@ -1,0 +1,22 @@
+{
+  "f78c2c07": {
+    "name": "test",
+    "faction": "AW",
+    "owner": "AW",
+    "shared_name": "2",
+    "control_value": 2,
+    "tags": [
+      "F78C2C07"
+    ]
+  },
+  "044b2aac872681": {
+    "name": "Tree",
+    "faction": "AW",
+    "owner": "AW",
+    "shared_name": "Alpha",
+    "control_value": 3,
+    "tags": [
+      "044B2AAC872681"
+    ]
+  }
+}
