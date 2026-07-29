@@ -104,6 +104,11 @@ class RegistrationScreen(Screen):
             yield Input(placeholder="Faction", id="faction_input")
             yield Button("Start Registration", id="start_btn")
             yield Input(placeholder="Unit name (after a scan)", id="unit_name_input", disabled=True)
+            # Optional alternate unit name / nickname
+            yield Input(placeholder="Unit Name (optional)", id="unit_opt_input", disabled=True)
+            # Control value numeric entry
+            yield Input(placeholder="Control Value (number)", id="control_value_input", disabled=True)
+            yield Static("Unit Name is optional and will be stored in Units.json if provided.", id="optional_hint")
             yield Button("Finish (Esc)", id="finish_btn")
 
     def on_mount(self) -> None:
@@ -116,6 +121,8 @@ class RegistrationScreen(Screen):
             self.action_finish()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        # Submitting the primary unit name field triggers the save; optional
+        # fields are read at that time as well.
         if event.input.id == "unit_name_input" and self.pending_uid:
             name = event.value.strip()
             event.input.value = ""
@@ -171,18 +178,28 @@ class RegistrationScreen(Screen):
             return
 
         self.pending_uid = uid
+        # enable inputs
         unit_input = self.query_one("#unit_name_input", Input)
+        opt_input = self.query_one("#unit_opt_input", Input)
+        control_input = self.query_one("#control_value_input", Input)
         unit_input.disabled = False
+        opt_input.disabled = False
+        control_input.disabled = False
         unit_input.focus()
 
-        existing = self.registry.get_tag_assignment(uid)
-        if existing:
-            existing_unit = self.registry.units.get(existing.unit_id)
-            existing_name = existing_unit.name if existing_unit else existing.unit_id
-            status.update(
-                f"Tag {uid} is already registered to '{existing_name}'. "
-                f"Type a unit name to reassign it, or press Escape to skip."
-            )
+        existing_unit_id = self.registry.get_unit_id_by_tag(uid)
+        if existing_unit_id:
+            existing_unit = self.registry.units.get(existing_unit_id)
+            existing_name = existing_unit.name if existing_unit else existing_unit_id
+            ctrl = getattr(existing_unit, "control_value", None)
+            optional_name = getattr(existing_unit, "unit_name", None)
+            status_text = f"Tag {uid} is already registered to '{existing_name}'"
+            if optional_name:
+                status_text += f" (Unit Name: {optional_name})"
+            if ctrl is not None:
+                status_text += f" (Control Value: {ctrl})"
+            status_text += ". Type a unit name to reassign it, or press Escape to skip."
+            status.update(status_text)
         else:
             status.update(f"Scanned tag: {uid}. Enter the unit name for it.")
 
@@ -191,22 +208,39 @@ class RegistrationScreen(Screen):
         if not uid:
             return
 
-        existing_tag = self.registry.get_tag_assignment(uid)
-        existing_unit_id = self.registry.find_unit_id_by_name(unit_name)
+        existing_unit_assigned = self.registry.get_unit_id_by_tag(uid)
+        existing_unit_id_by_name = self.registry.find_unit_id_by_name(unit_name)
+
+        # read optional fields
+        opt_input = self.query_one("#unit_opt_input", Input)
+        control_input = self.query_one("#control_value_input", Input)
+        opt_name = opt_input.value.strip() or None
+        control_val = None
+        try:
+            if control_input.value.strip():
+                control_val = int(control_input.value.strip())
+        except ValueError:
+            # ignore invalid numeric input; treat as None
+            control_val = None
 
         def proceed() -> None:
-            unit_id, created = self.registry.register_tag(uid, unit_name, self.faction, self.owner)
+            unit_id, created = self.registry.register_tag(uid, unit_name, self.faction, self.owner, unit_name_optional=opt_name, control_value=control_val)
             self.registry.save()
             note = "new unit" if created else "added to existing unit"
             self.query_one("#reg_status", Static).update(
                 f"Registered tag {uid} -> '{unit_name}' ({note})."
             )
             self.pending_uid = None
+            # disable and clear inputs
             self.query_one("#unit_name_input", Input).disabled = True
+            self.query_one("#unit_opt_input", Input).disabled = True
+            self.query_one("#control_value_input", Input).disabled = True
+            self.query_one("#unit_opt_input", Input).value = ""
+            self.query_one("#control_value_input", Input).value = ""
             self._request_scan()
 
-        if existing_tag or existing_unit_id:
-            if existing_tag:
+        if existing_unit_assigned or existing_unit_id_by_name:
+            if existing_unit_assigned:
                 message = f"Tag {uid} is already assigned elsewhere. Reassign it to '{unit_name}'?"
             else:
                 message = f"Unit '{unit_name}' already exists. Add this tag to it?"
