@@ -34,8 +34,9 @@ class Unit:
     name: str
     faction: str
     owner: Optional[str] = None
-    points: Optional[int] = None
-    metadata: dict = field(default_factory=dict)
+    shared_name: Optional[str] = None
+    control_value: Optional[int] = None
+    tags: dict = field(default_factory=dict)
 
 
 @dataclass

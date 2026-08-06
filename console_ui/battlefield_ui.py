@@ -24,7 +24,7 @@ class _PathFilter(logging.Filter):
         return self.path_segment in pathname
 
 
-def setup_logging(interface_log_path: str = "Interface.log", server_log_path: str = "Server.log", level: int = logging.DEBUG) -> None:
+def setup_logging(interface_log_path: str = "logs/Interface.log", server_log_path: str = "logs/Server.log", level: int = logging.DEBUG) -> None:
     interface_path = Path(interface_log_path)
     server_path = Path(server_log_path)
     interface_path.parent.mkdir(parents=True, exist_ok=True)

@@ -36,7 +36,7 @@ class _PathFilter(logging.Filter):
 
 def setup_logging(config: dict) -> None:
     log_cfg = config.get("logging", {})
-    log_path = Path(log_cfg.get("path", "Server.log"))
+    log_path = Path(log_cfg.get("path", "logs/Server.log"))
     log_path.parent.mkdir(parents=True, exist_ok=True)
     level = getattr(logging, log_cfg.get("level", "INFO").upper(), logging.INFO)
 

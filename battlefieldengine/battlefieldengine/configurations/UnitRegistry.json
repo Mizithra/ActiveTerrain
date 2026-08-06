@@ -3,10 +3,30 @@
     "name": "Tag",
     "faction": "Wood Elves",
     "owner": "Mizithra",
-    "shared_name": "test",
+    "shared_name": "Corsairs",
     "control_value": 1,
     "tags": [
       "F78C2C07"
+    ]
+  },
+  "044B2AAC872681": {
+    "name": "Corsair Special Weapon Model",
+    "faction": "Space Elves",
+    "owner": "Mizithra",
+    "shared_name": "Corsairs",
+    "control_value": 1,
+    "tags": [
+      "044B2AAC872681"
+    ]
+  },
+  "53E63166960001": {
+    "name": "Corsair Captain",
+    "faction": "Space Elves",
+    "owner": "Mizithra",
+    "shared_name": "Corsairs",
+    "control_value": 5,
+    "tags": [
+      "53E63166960001"
     ]
   }
 }

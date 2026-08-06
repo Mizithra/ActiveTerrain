@@ -5,7 +5,7 @@
   "presence_timeout_seconds": 5.0,
   "logging": {
     "level": "INFO",
-    "path": "Server.log"
+    "path": "logs/Server.log"
   }
 }
 

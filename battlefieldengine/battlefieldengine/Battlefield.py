@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 from typing import Callable, Optional
 from datetime import datetime, timedelta
@@ -30,6 +31,9 @@ TOPIC_TURN_STATE = "battlefield/turn/state"   # backend -> everyone: {"turn": in
 TOPIC_UNIT_EVENT = "battlefield/units/event"  # backend -> everyone: {"uid", "name", "event", "terrain"}
 TOPIC_COMMAND = "battlefield/command"         # UI -> backend: {"action": "...", ...}
 
+def slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return slug or "unit"
 
 class UnitRegistry:
     """Maps RFID UID -> Unit metadata, loaded from a JSON file.
@@ -150,19 +154,20 @@ class Battlefield:
         Same "first heartbeat = arrival" logic as before -- just triggered
         by TerrainNode rather than a raw MQTT subscription.
         """
-        unit = self._registry.get(reading.uid)
+        clean_uid = slugify(reading.uid).upper()
+        unit = self._registry.get(clean_uid)
         if unit is None:
-            logger.warning("Unrecognized RFID UID scanned at %s: %s", terrain_node.name, reading.uid)
-            self._notify("unknown_unit_scanned", {"uid": reading.uid, "terrain": terrain_node.name})
+            logger.warning("Unrecognized RFID UID scanned at %s: %s", terrain_node.name, clean_uid)
+            self._notify("unknown_unit_scanned", {"uid": clean_uid, "terrain": terrain_node.name})
             return
 
         newly_arrived = False
         with self._lock:
-            state = self._units_seen.get(reading.uid)
+            state = self._units_seen.get(clean_uid)
             now = datetime.now()
             if state is None:
                 state = UnitState(unit=unit, on_field=True, last_seen=now)
-                self._units_seen[reading.uid] = state
+                self._units_seen[clean_uid] = state
                 newly_arrived = True
             else:
                 if not state.on_field:
@@ -172,7 +177,7 @@ class Battlefield:
 
         if newly_arrived:
             data = {
-                "uid": reading.uid,
+                "uid": clean_uid,
                 "name": unit.name,
                 "faction": unit.faction,
                 "event": "unit_arrived",
