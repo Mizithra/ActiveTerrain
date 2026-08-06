@@ -146,6 +146,7 @@ class RegistrationScreen(Screen):
             status.update("Enter your name and faction before starting.")
             return
 
+        logger.info("Starting registration: owner=%s faction=%s", self.owner, self.faction)
         owner_input.disabled = True
         faction_input.disabled = True
         self.query_one("#start_btn", Button).disabled = True
@@ -154,6 +155,7 @@ class RegistrationScreen(Screen):
     def _request_scan(self) -> None:
         self.pending_uid = None
         self._set_entry_inputs_enabled(False)
+        logger.debug("Requesting RFID scan via %s", self.register_start_topic)
         self.query_one("#reg_status", Static).update(
             "Waiting for a tag scan (station light is on)..."
         )
@@ -182,12 +184,14 @@ class RegistrationScreen(Screen):
         if not uid:
             self.pending_uid = None
             self._set_entry_inputs_enabled(False)
+            logger.warning("Scan timed out, requesting another attempt")
             status.update("Scan timed out. Requesting another attempt...")
             self._request_scan()
             return
         # Force all tags to be uppercase for consistency, since some readers may return lowercase.
         uid = uid.upper()
         self.pending_uid = uid
+        logger.info("Scanned tag %s", uid)
         self._set_entry_inputs_enabled(True)
         self.query_one("#unit_name_input", Input).focus()
 
@@ -226,6 +230,13 @@ class RegistrationScreen(Screen):
             control_val = None
 
         def proceed() -> None:
+            logger.info(
+                "Registering tag %s as unit '%s' shared_name=%s control_value=%s",
+                uid,
+                unit_name,
+                shared_name,
+                control_val,
+            )
             _, created = self.registry.register_tag(
                 uid,
                 unit_name,
@@ -280,6 +291,7 @@ class RegistrationScreen(Screen):
             return None
 
     def action_finish(self) -> None:
+        logger.info("Finishing registration screen")
         self.registry.save()
         self.mqtt.publish(self.register_end_topic, {"action": "end"})
         app = self._current_app()

@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -11,6 +12,45 @@ from RegistryManager import RegistryManager
 from RegistrationScreen import RegistrationScreen
 
 logger = logging.getLogger(__name__)
+
+
+class _PathFilter(logging.Filter):
+    def __init__(self, path_segment: str):
+        super().__init__()
+        self.path_segment = os.path.normcase(path_segment)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        pathname = os.path.normcase(getattr(record, "pathname", ""))
+        return self.path_segment in pathname
+
+
+def setup_logging(interface_log_path: str = "Interface.log", server_log_path: str = "Server.log", level: int = logging.DEBUG) -> None:
+    interface_path = Path(interface_log_path)
+    server_path = Path(server_log_path)
+    interface_path.parent.mkdir(parents=True, exist_ok=True)
+    server_path.parent.mkdir(parents=True, exist_ok=True)
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    interface_handler = logging.FileHandler(interface_path, encoding="utf-8")
+    interface_handler.setLevel(level)
+    interface_handler.setFormatter(formatter)
+    interface_handler.addFilter(_PathFilter("console_ui"))
+
+    server_handler = logging.FileHandler(server_path, encoding="utf-8")
+    server_handler.setLevel(level)
+    server_handler.setFormatter(formatter)
+    server_handler.addFilter(_PathFilter("battlefieldengine"))
+
+    root = logging.getLogger()
+    root.setLevel(level)
+    for existing in list(root.handlers):
+        root.removeHandler(existing)
+    root.addHandler(interface_handler)
+    root.addHandler(server_handler)
+
+    logger.info("Logging configured: Interface=%s Server=%s", interface_path, server_path)
+
 
 # The registration station's OBJECTIVE_TOPIC -- point this at whichever
 # ESP32 is doing registration duty (a spare device, or temporarily one of
@@ -74,6 +114,7 @@ class BattlefieldUI(App):
         self.registry = RegistryManager(UNITS_PATH)
 
     def on_mount(self) -> None:
+        logger.info("Battlefield UI mounted and subscribing to MQTT topics")
         self.mqtt.subscribe(TOPIC_TURN_STATE, self._on_turn_state)
         self.mqtt.subscribe(TOPIC_UNIT_EVENT, self._on_unit_event)
 
@@ -108,6 +149,7 @@ class BattlefieldUI(App):
         self.mqtt.publish(TOPIC_COMMAND, {"action": "increment_turn"})
 
     def action_open_registration(self) -> None:
+        logger.info("Opening registration screen")
         self.push_screen(
             RegistrationScreen(
                 self.mqtt,
@@ -119,11 +161,13 @@ class BattlefieldUI(App):
         )
 
     def _on_turn_state(self, topic: str, payload: dict) -> None:
+        logger.debug("Received turn state update: %s", payload)
         self.turn = payload.get("turn", self.turn)
         self.phase = payload.get("phase", self.phase)
         self.call_from_thread(self._refresh_status)
 
     def _on_unit_event(self, topic: str, payload: dict) -> None:
+        logger.debug("Received unit event: %s", payload)
         name = payload.get("name", "Unknown unit")
         event = payload.get("event", "event")
         self.call_from_thread(self._log_event, f"{name}: {event}")
@@ -136,10 +180,8 @@ class BattlefieldUI(App):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        filename="UI.log",
-        level=logging.DEBUG,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
+    setup_logging()
+    logger.info("Starting Battlefield UI")
     app = BattlefieldUI()
     app.run()
+

@@ -12,11 +12,13 @@ or anything else.
 from __future__ import annotations
 
 import json
-import re
 import logging
+import re
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def slugify(name: str) -> str:
@@ -55,11 +57,13 @@ class RegistryManager:
                 raw = json.load(f)
             # Support older Units.json that didn't include new fields
             self.units = {uid: UnitEntry(**data) for uid, data in raw.items()}
+            logger.info("Loaded %d registry entries from %s", len(self.units), self.units_path)
 
 
     def save(self) -> None:
         # Ensure parent folders exist for the primary file.
         self.units_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.debug("Saving %d registry entries to %s", len(self.units), self.units_path)
         with open(self.units_path, "w") as f:
             json.dump({uid: asdict(u) for uid, u in self.units.items()}, f, indent=2)
 
@@ -84,6 +88,15 @@ class RegistryManager:
         doesn't exist yet, or reusing it if it does. The tag UIDs are stored
         inside the unit entry under 'tags'. Returns (unit_id, created_new_unit).
         """
+        logger.info(
+            "Registering tag %s to unit '%s' faction=%s owner=%s shared_name=%s control_value=%s",
+            tag_uid,
+            unit_name,
+            faction,
+            owner,
+            shared_name,
+            control_value,
+        )
         unit_id = self.get_unit_id_by_tag(tag_uid)
         created_new_unit = unit_id is None
         if created_new_unit:

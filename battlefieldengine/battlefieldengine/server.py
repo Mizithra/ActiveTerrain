@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sys
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -24,20 +24,34 @@ def load_config(path: Path) -> dict:
         return json.load(f)
 
 
+class _PathFilter(logging.Filter):
+    def __init__(self, path_segment: str):
+        super().__init__()
+        self.path_segment = os.path.normcase(path_segment)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        pathname = os.path.normcase(getattr(record, "pathname", ""))
+        return self.path_segment in pathname
+
+
 def setup_logging(config: dict) -> None:
     log_cfg = config.get("logging", {})
-    log_path = Path(log_cfg.get("path", "logs/server.log"))
+    log_path = Path(log_cfg.get("path", "Server.log"))
     log_path.parent.mkdir(parents=True, exist_ok=True)
     level = getattr(logging, log_cfg.get("level", "INFO").upper(), logging.INFO)
 
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_path),
-            logging.StreamHandler(sys.stdout),
-        ],
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    server_handler = logging.FileHandler(log_path, encoding="utf-8")
+    server_handler.setLevel(level)
+    server_handler.setFormatter(formatter)
+    server_handler.addFilter(_PathFilter("battlefieldengine"))
+
+    root = logging.getLogger()
+    root.setLevel(level)
+    for existing in list(root.handlers):
+        root.removeHandler(existing)
+    root.addHandler(server_handler)
+    logger.info("Server logging configured to %s", log_path)
 
 
 class GameServer:
