@@ -1,12 +1,12 @@
 {
-  "044B2AAC872681": {
-    "name": "Wood Guy",
-    "faction": "Sylvaneth",
-    "owner": "Mizithra"
-  },
   "F78C2C07": {
-    "name": "Taggels",
-    "faction": "Sylvaneth",
-    "owner": "Mizithra"
+    "name": "Tag",
+    "faction": "Wood Elves",
+    "owner": "Mizithra",
+    "shared_name": "test",
+    "control_value": 1,
+    "tags": [
+      "F78C2C07"
+    ]
   }
 }

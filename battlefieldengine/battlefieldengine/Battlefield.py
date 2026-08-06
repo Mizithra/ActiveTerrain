@@ -47,11 +47,15 @@ class UnitRegistry:
             self.load(path)
 
     def load(self, path: Path) -> None:
-        with open(path, "r") as f:
-            raw = json.load(f)
-        for uid, data in raw.items():
-            self._units[uid] = Unit(uid=uid, **data)
-        logger.info("Loaded %d units from %s", len(self._units), path)
+        try:
+            with open(path, "r") as f:
+                raw = json.load(f)
+            for uid, data in raw.items():
+                self._units[uid] = Unit(uid=uid, **data)
+            logger.info("Loaded %d units from %s", len(self._units), path)
+        except Exception as e:
+            logger.error("Failed to load unit registry from %s: %s", path, e)
+            self._units = {}
 
     def get(self, uid: str) -> Optional[Unit]:
         return self._units.get(uid)

@@ -10,9 +10,8 @@ set -euo pipefail
 #                            # running in THIS terminal until you Ctrl+C it
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONSOLE_UI_DIR="$REPO_ROOT/console_ui"
 SERVER_SCRIPT="$REPO_ROOT/battlefieldengine/battlefieldengine/server.py"
-UI_SCRIPT="$CONSOLE_UI_DIR/battlefield_ui.py"
+UI_SCRIPT="$REPO_ROOT/console_ui/battlefield_ui.py"
 
 POPUP=false
 [[ "${1:-}" == "--popup" ]] && POPUP=true
@@ -32,7 +31,7 @@ trap cleanup EXIT INT TERM
 # Give the backend a moment to connect before the UI starts talking to it
 sleep 1
 
-cd "$CONSOLE_UI_DIR"
+cd "$REPO_ROOT"
 
 if [[ "$POPUP" == true ]]; then
   echo "Launching UI in a new terminal window..."

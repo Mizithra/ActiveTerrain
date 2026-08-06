@@ -38,16 +38,14 @@ class UnitEntry:
 
 
 class RegistryManager:
-    def __init__(self, units_path: Path, tags_path: Path | None = None, unit_registry_export_path: Path | None = Path("battlefieldengine/battlefieldengine/configurations/UnitRegistry.json")):
+    def __init__(self, units_path: Path, tags_path: Path | None = None):
         """units_path: path to Units.json
         tags_path: legacy (ignored) kept for compatibility with callers.
-        unit_registry_export_path: optional path to write the merged UID->unit metadata
             file that the backend expects (UnitRegistry.json). If None, no export is written.
         """
         self.units_path = units_path
         # Tags are now stored inside Units.json; ignore legacy tags_path
         self.tags_path = tags_path
-        self.unit_registry_export_path = unit_registry_export_path
         self.units: dict[str, UnitEntry] = {}
         self._load()
 
@@ -58,21 +56,6 @@ class RegistryManager:
             # Support older Units.json that didn't include new fields
             self.units = {uid: UnitEntry(**data) for uid, data in raw.items()}
 
-    def _build_unit_registry_export(self) -> dict:
-        """Build the merged mapping expected by the backend UnitRegistry.json:
-        { "<tag_uid>": {"name": ..., "faction": ..., "owner": ...}, ... }
-        Reads tags embedded in Units.json (unit.tags).
-        """
-        export: dict[str, dict] = {}
-        for unit_id, unit in self.units.items():
-            for tag_uid in unit.tags:
-                export[tag_uid] = {
-                    "name": unit.name,
-                    "faction": unit.faction,
-                    # owner may be None; include it explicitly (will be null in JSON)
-                    "owner": unit.owner,
-                }
-        return export
 
     def save(self) -> None:
         # Ensure parent folders exist for the primary file.
@@ -80,13 +63,6 @@ class RegistryManager:
         with open(self.units_path, "w") as f:
             json.dump({uid: asdict(u) for uid, u in self.units.items()}, f, indent=2)
 
-        # # # Optionally export a merged UnitRegistry.json that maps UID->unit metadata
-        # if self.unit_registry_export_path is not None:
-        #     export = self._build_unit_registry_export()
-        #     # Create parent dir and write the file
-        #     self.unit_registry_export_path.parent.mkdir(parents=True, exist_ok=True)
-        #     with open(self.unit_registry_export_path, "w") as f:
-        #         json.dump(export, f, indent=2)
 
     def find_unit_id_by_name(self, name: str) -> Optional[str]:
         for unit_id, unit in self.units.items():
@@ -111,7 +87,7 @@ class RegistryManager:
         unit_id = self.get_unit_id_by_tag(tag_uid)
         created_new_unit = unit_id is None
         if created_new_unit:
-            base = slugify(tag_uid)
+            base = slugify(tag_uid).upper()
             unit_id = base
             counter = 2
             while unit_id in self.units:
