@@ -55,10 +55,17 @@ class RegistryManager:
         if self.units_path.exists():
             with open(self.units_path) as f:
                 raw = json.load(f)
-            # Support older Units.json that didn't include new fields
-            self.units = {uid: UnitEntry(**data) for uid, data in raw.items()}
+            # Support older Units.json that didn't include new fields.
+            self.units = {}
+            for uid, data in raw.items():
+                unit = UnitEntry(**data)
+                unit.tags = [self._normalize_tag_uid(tag) for tag in (unit.tags or [])]
+                self.units[uid] = unit
             logger.info("Loaded %d registry entries from %s", len(self.units), self.units_path)
 
+
+    def _normalize_tag_uid(self, tag_uid: str) -> str:
+        return tag_uid.strip().upper()
 
     def save(self) -> None:
         # Ensure parent folders exist for the primary file.
@@ -78,8 +85,9 @@ class RegistryManager:
 
     def get_unit_id_by_tag(self, tag_uid: str) -> Optional[str]:
         """Return the unit_id that currently lists tag_uid, or None."""
+        normalized_uid = self._normalize_tag_uid(tag_uid)
         for unit_id, unit in self.units.items():
-            if tag_uid in (unit.tags or []):
+            if normalized_uid in (unit.tags or []):
                 return unit_id
         return None
 
@@ -97,9 +105,16 @@ class RegistryManager:
             shared_name,
             control_value,
         )
-        unit_id = self.get_unit_id_by_tag(tag_uid)
-        created_new_unit = unit_id is None
-        if created_new_unit:
+        tag_uid = self._normalize_tag_uid(tag_uid)
+        existing_unit_id = self.get_unit_id_by_tag(tag_uid)
+        target_unit_id = self.find_unit_id_by_name(unit_name)
+
+        if existing_unit_id is not None and existing_unit_id != target_unit_id:
+            existing_unit = self.units.get(existing_unit_id)
+            if existing_unit and tag_uid in existing_unit.tags:
+                existing_unit.tags.remove(tag_uid)
+
+        if target_unit_id is None:
             base = slugify(tag_uid).upper()
             unit_id = base
             counter = 2
@@ -107,7 +122,9 @@ class RegistryManager:
                 unit_id = f"{base}_{counter}"
                 counter += 1
             self.units[unit_id] = UnitEntry(name=unit_name, faction=faction, owner=owner, shared_name=shared_name, control_value=control_value, tags=[tag_uid])
+            created_new_unit = True
         else:
+            unit_id = target_unit_id
             unit = self.units[unit_id]
             # update optional fields if provided
             if shared_name:
@@ -116,5 +133,6 @@ class RegistryManager:
                 unit.control_value = control_value
             if tag_uid not in unit.tags:
                 unit.tags.append(tag_uid)
+            created_new_unit = False
 
         return unit_id, created_new_unit
