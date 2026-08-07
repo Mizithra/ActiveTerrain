@@ -110,11 +110,11 @@ class RegistryManager:
         else:
             unit = self.units[unit_id]
             # update optional fields if provided
-            if shared_name:
-                unit.shared_name = shared_name
-            if control_value is not None:
-                unit.control_value = control_value
-            if tag_uid not in unit.tags:
-                unit.tags.append(tag_uid)
+            unit.name = unit_name
+            unit.faction = faction
+            unit.owner = owner
+            unit.shared_name = shared_name
+            unit.control_value = control_value
+            unit.tags.append(tag_uid)
 
         return unit_id, created_new_unit
