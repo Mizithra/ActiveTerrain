@@ -7,6 +7,7 @@ class OledController {
 public:
   void begin(const String &objectiveTopic);
   void handleMqttEvent(const String &topic, const String &payload);
+  bool run(uint8_t sdaPin, uint8_t sclPin, uint8_t i2cAddress);
 
   const String &topic() const { return _topic; }
 
