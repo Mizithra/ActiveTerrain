@@ -48,7 +48,9 @@ void ObjectiveNode::begin(const char *wifiSsid, const char *wifiPassword,
   }
   _nfc.SAMConfig();
   Serial.println("PN532 initialized");
+  delay(3000); 
   _oled.run(32, 33, 0x3C);  // SDA, SCL, I2C address
+  _audio.testPlay("001.mp3");  // Test play: Plays "0001.mp3" from your SD card
   
 }
 
