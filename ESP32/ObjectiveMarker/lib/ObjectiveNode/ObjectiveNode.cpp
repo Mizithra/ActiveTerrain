@@ -48,6 +48,8 @@ void ObjectiveNode::begin(const char *wifiSsid, const char *wifiPassword,
   }
   _nfc.SAMConfig();
   Serial.println("PN532 initialized");
+  _oled.run(32, 33, 0x3C);  // SDA, SCL, I2C address
+  
 }
 
 void ObjectiveNode::loop() {
