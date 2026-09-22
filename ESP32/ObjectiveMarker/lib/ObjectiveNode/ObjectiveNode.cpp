@@ -5,6 +5,7 @@ ObjectiveNode::ObjectiveNode(const String &objectiveTopic, uint8_t ledPin, uint8
   : _objectiveTopic(objectiveTopic),
     _nfc(sdaPin, sclPin),
     _led(ledPin),
+    _audio(),
     _rfid(_nfc, _mqtt),
     _registration(_nfc, _mqtt, _led) {}
 

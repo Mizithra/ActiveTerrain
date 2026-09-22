@@ -1,7 +1,5 @@
 #include "AudioController.h"
-#include <ArduinoJson.h>
-#include "HardwareSerial.h"
-#include <DFMiniMp3.h>
+
 
 // Forward declare the notification class so we can reference the main object safely
 class Mp3Notify;
@@ -12,15 +10,12 @@ class Mp3Notify;
 #define FPS_TX 17
 
 // Target Serial2 globally to align with Pins 16 & 17
-
+AudioController::AudioController()
+  : _serial(2), _mp3(_serial) {}   // UART2, matches your FPS_RX/FPS_TX pins
 
 void AudioController::begin(const String &objectiveTopic) {
   _topic = objectiveTopic + "/audio_control";
 
-  // Force Hardware Serial 2 setup with specific pins required by ESP32 before module init
-  Serial2.begin(9600, SERIAL_8N1, FPS_RX, FPS_TX);
-  
-  // Clean initialization of the Makuna stack
   _mp3.begin();
 }
 

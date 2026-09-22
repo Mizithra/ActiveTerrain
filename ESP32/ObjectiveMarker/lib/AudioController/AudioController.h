@@ -1,7 +1,8 @@
 #pragma once
 #include <Arduino.h>
-
-
+#include <ArduinoJson.h>
+#include "HardwareSerial.h"
+#include <DFMiniMp3.h>
 
 // Implement the mandatory Makuna notification class with modern method signatures
 class Mp3Notify {
@@ -32,6 +33,8 @@ public:
 // Mini over serial) once hardware is connected.
 class AudioController {
 public:
+  AudioController();
+
   void begin(const String &objectiveTopic);
   void handleMqttEvent(const String &topic, const String &payload);
 
@@ -40,8 +43,6 @@ public:
 
 private:
   String _topic;
-
-DFMiniMp3<HardwareSerial, Mp3Notify> mp3;
-
-
+  HardwareSerial _serial;   // owned here, must be declared before _mp3
+  DFMiniMp3<HardwareSerial, Mp3Notify> _mp3;
 };
