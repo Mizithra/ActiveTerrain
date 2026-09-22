@@ -38,7 +38,7 @@ public:
   void begin(const String &objectiveTopic);
   void handleMqttEvent(const String &topic, const String &payload);
 
-  void testPlay(const String &fileName);
+  void playFile(const int fileNum);
   const String &topic() const { return _topic; }
 
 private:

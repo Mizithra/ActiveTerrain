@@ -20,19 +20,15 @@ void AudioController::begin(const String &objectiveTopic) {
 }
 
 void AudioController::handleMqttEvent(const String &topic, const String &payload) {
-  JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    Serial.println("AudioController: failed to parse JSON payload");
-    return;
-  }
-  const char *soundFile = doc["sound_file"] | "";
-  Serial.printf("AudioController: would play '%s'\n", soundFile);
+
+  // const char *soundFile = doc["sound_file"] | "";
+  Serial.printf("AudioController: would play '%s'\n", payload);
   
   // Process the async loop structure required by Makuna
-  _mp3.loop();
+  playFile(1);
 }
 
-void AudioController::testPlay(const String &fileName)
+void AudioController::playFile(const int fileNum)
 {
   Serial.println(F("Connecting to DFPlayer..."));
   
@@ -43,7 +39,7 @@ void AudioController::testPlay(const String &fileName)
   Serial.println(F("DFPlayer Online! Attempting playback..."));
   
   // Plays track 0002 from your SD card's "mp3" folder using Makuna methods
-  _mp3.playMp3FolderTrack(1);
+  _mp3.playMp3FolderTrack(fileNum);
   delay(500); // Final delay step to protect transmission cycle
   
   Serial.println(F("DFPlayer Finished Command Sequence!"));

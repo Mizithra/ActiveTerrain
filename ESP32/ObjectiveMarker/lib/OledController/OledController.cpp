@@ -37,12 +37,8 @@ void OledController::begin(const String &objectiveTopic) {
 }
 
 void OledController::handleMqttEvent(const String &topic, const String &payload) {
-  JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    Serial.println("OledController: failed to parse JSON payload");
-    return;
-  }
-  const char *text = doc["text"] | "";
-  Serial.printf("OledController: would display '%s'\n", text);
+  // const char *text = doc["text"] | "";
+  Serial.printf("OledController: would display '%s'\n", payload);
+  run(32, 33, 0x3C);  // SDA, SCL, I2C address
   // TODO: display.clearDisplay(); display.println(text); display.display();
 }
