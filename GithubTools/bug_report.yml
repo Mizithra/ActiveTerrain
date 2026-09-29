@@ -1,0 +1,60 @@
+name: Bug report
+description: Something is broken in the firmware, backend, UI or config
+title: "[Bug]: "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include enough detail to reproduce. For security problems, do NOT open an issue: use the private vulnerability report link on the New Issue page.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Firmware (ESP32)
+        - Backend (Python)
+        - UI (TUI / web)
+        - Config (rig / theme / mission)
+        - Hardware
+        - Docs
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is happening? What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Flash firmware ...
+        2. Place tag on marker ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Firmware version or git commit (and backend commit if relevant)
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Board, RFID reader, LED, OLED, audio module; number of markers
+  - type: textarea
+    id: files
+    attributes:
+      label: Related files or lines
+      description: Paths, function names, or GitHub permalinks
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Serial output, logs/Server.log, or broker logs. Remove credentials first.
+      render: shell
