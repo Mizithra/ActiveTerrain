@@ -40,8 +40,8 @@ class UnitRegistry:
 
     Example UnitRegistry.json:
     {
-      "04A3B2C1": {"name": "Intercessor Squad", "faction": "Space Marines", "owner": "Alice", "points": 100},
-      "9F1122AA": {"name": "Ork Boyz",           "faction": "Orks",          "owner": "Bob",   "points": 90}
+      "04A3B2C1": {"name": "Shooting Squad", "faction": "Space Elves", "owner": "Alice", "points": 100},
+      "9F1122AA": {"name": "orc unit",           "faction": "Orc",          "owner": "Bob",   "points": 90}
     }
     """
 

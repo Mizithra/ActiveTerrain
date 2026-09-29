@@ -1,20 +1,20 @@
 # ActiveTerrain
 
-**Smart tabletop terrain for Warhammer 40k — RFID-aware objectives, live Visual & Audio feedback, and a real-time backend that turns a static battlefield into a reactive one.**
+**Smart tabletop terrain for Wargamming terrain — RFID-aware objectives, live Visual & Audio feedback, and a real-time backend that turns a static battlefield into a reactive one.**
 
 ---
 
 ## What it is
 
-ActiveTerrain is a distributed IoT system that brings physical Warhammer 40k terrain to life. Objective markers on the table know when a unit is standing on them. Lights react in real time based on what's happening in the game. A backend keeps score of the battle — turn, phase, and unit presence — without a player ever touching a phone or a laptop.
+ActiveTerrain is a distributed IoT system that brings physical Wargamming terrain to life. Objective markers on the table know when a unit is standing on them. Lights react in real time based on what's happening in the game. A backend keeps score of the battle — turn, phase, and unit presence — without a player ever touching a phone or a laptop.
 
 Place a model on an objective, and its RFID tag is read by a hidden sensor. That event flows over MQTT to a Python backend, which updates the state of the game and pushes a command back out to light the terrain itself — no app to open, no button to press. The tabletop becomes the interface.
 
 ## The idea behind it
 
-Tabletop wargames are tactile and social by design — but what if we brought more of the tabletop to life.  I don't want to make a virtual way of playing Warhammer 40K, but I want to bring some of the elements of digital media to enhance the experience.  Make the tabletop more immersive by playing audio files and lighting up to match your armies theme, maybe even create your own.
+Tabletop wargames are tactile and social by design — but what if we brought more of the tabletop to life.  I don't want to make a virtual way of playing Tabletop Wargames, but I want to bring some of the elements of digital media to enhance the experience.  Make the tabletop more immersive by playing audio files and lighting up to match your armies theme, maybe even create your own.
 
-This project exists at the intersection of a few things I wanted to build well at once: embedded systems talking to real hardware, a distributed architecture where independent devices coordinate through a message broker instead of direct connections, and a backend clean enough that adding a new kind of terrain feature is a config change, not a rewrite. The Warhammer setting is the fun part; the systems design underneath is the point.
+This project exists at the intersection of a few things I wanted to build well at once: embedded systems talking to real hardware, a distributed architecture where independent devices coordinate through a message broker instead of direct connections, and a backend clean enough that adding a new kind of terrain feature is a config change, not a rewrite. The setting is the fun part; the systems design underneath is the point.
 
 ## What it does today
 
