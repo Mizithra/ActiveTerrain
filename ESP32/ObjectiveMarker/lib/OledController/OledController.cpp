@@ -25,7 +25,7 @@ namespace {
   constexpr int16_t  SLIDE_UP_STEP_PX         = 8;
   constexpr uint32_t SLIDE_UP_STEP_DELAY_MS   = 20;
 
-  constexpr uint32_t ZOOM_STEP_DELAY_MS       = 120;
+  constexpr uint32_t ZOOM_STEP_DELAY_MS       = 240;
 
   constexpr uint32_t BOUNCE_STEP_DELAY_MS     = 70;
   constexpr int16_t  BOUNCE_KEYFRAMES[]       = { -80, -20, 10, -4, 0 };
