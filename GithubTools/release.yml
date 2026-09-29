@@ -1,0 +1,15 @@
+changelog:
+  exclude:
+    labels: ["type: task", "type: epic", "icebox"]
+    authors: ["dependabot"]
+  categories:
+    - title: "Breaking changes"
+      labels: ["breaking"]
+    - title: "Security"
+      labels: ["area: security"]
+    - title: "New features"
+      labels: ["type: feature"]
+    - title: "Bug fixes"
+      labels: ["type: bug"]
+    - title: "Other changes"
+      labels: ["*"]

@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a new capability or improvement
+title: "[Feature]: "
+labels: ["type: feature"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Firmware (ESP32)
+        - Backend (Python)
+        - UI (TUI / web)
+        - Config (rig / theme / mission)
+        - Hardware
+        - Docs
+        - Business / go-to-market
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What can't you do today, or what would this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: files
+    attributes:
+      label: Related files or lines
+      description: Paths, function names, or GitHub permalinks
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+  - type: dropdown
+    id: size
+    attributes:
+      label: Rough size
+      options:
+        - S (up to ~3 h)
+        - M (~4-8 h)
+        - L (~9-20 h)
+        - XL (more than ~20 h)
