@@ -32,11 +32,11 @@ jobs:
         run: pip install platformio
 
       - name: Create secrets.h
-        working-directory: ESP32
-        run: cp include/example_secrets.h include/secrets.h
+        working-directory: ESP32/ObjectiveMarker
+        run: cp src/example_secrets.h src/secrets.h
 
       - name: Build firmware
-        working-directory: ESP32
+        working-directory: ESP32/ObjectiveMarker
         run: pio run
 
       - name: Upload firmware
@@ -44,4 +44,4 @@ jobs:
         with:
           name: firmware
           path: |
-            ESP32/.pio/build/*/firmware.bin
+            ESP32/ObjectiveMarker/.pio/build/*/firmware.bin
