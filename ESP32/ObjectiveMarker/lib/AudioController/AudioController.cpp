@@ -106,7 +106,7 @@ void AudioController::playTrack(int track) {
 
   Serial.printf("AudioController: playing track %d\n", track);
   _mp3.playMp3FolderTrack(track);
-  delay(TRACK_COMMAND_SETTLE_MS); // final delay step to protect transmission cycle
+  // delay(TRACK_COMMAND_SETTLE_MS); // final delay step to protect transmission cycle
 
   _currentTrack = track;
   signalPlaybackStarted();
