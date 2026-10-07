@@ -3,6 +3,9 @@
 #include <ArduinoJson.h>
 #include "HardwareSerial.h"
 #include <DFMiniMp3.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 
 // Implement the mandatory Makuna notification class with modern method signatures
 class Mp3Notify {
@@ -33,7 +36,7 @@ public:
 enum class AudioCommand {
     PLAY_TRACK,   // play a specific track number (from the mp3 folder)
     PLAY_NEXT,    // play (current track + 1)
-    PLAY_PREV,    // play (current track + 1)
+    PLAY_PREV,    // play (current track - 1)
     PAUSE,        // pause playback, resumable
     RESUME,       // continue playback from pause
     STOP,         // stop playback outright
@@ -41,18 +44,18 @@ enum class AudioCommand {
     UNKNOWN       // payload didn't map to a recognized command
 };
 
-// Fixed-size-ish request describing one playback command. Mirrors the
-// OledController pattern: this struct is what the "business logic" layer
-// (MQTT parsing) hands to the "technical" layer (actual DFPlayer calls).
+// POD request passed from callers to the audio task through a FreeRTOS queue.
 struct AudioCommandRequest {
     AudioCommand command = AudioCommand::UNKNOWN;
     int track = 0; // only meaningful for PLAY_TRACK; ignored otherwise
 };
 
-// Drives a DFPlayer Mini over UART2 via the Makuna DFMiniMp3 library.
+// Drives a DFPlayer Mini on a dedicated FreeRTOS task. Public calls enqueue
+// commands and return without waiting for DFPlayer communication or settling.
 class AudioController {
 public:
   AudioController();
+  ~AudioController();
 
   void begin(const String &objectiveTopic);
   void handleMqttEvent(const String &topic, const String &payload);
@@ -77,6 +80,8 @@ private:
   DFMiniMp3<HardwareSerial, Mp3Notify> _mp3;
 
   int _currentTrack = 1; // last track played via playTrack()/playNext()/startOver()
+  QueueHandle_t commandQueue = nullptr;
+  TaskHandle_t taskHandle = nullptr;
 
   // ---- MQTT / business logic ---------------------------------------------
   // Interprets an incoming MQTT payload (JSON {"command","track"}, or a
@@ -84,9 +89,21 @@ private:
   // request. Knows nothing about the DFPlayer itself.
   AudioCommandRequest parseMqttPayload(const String &payload);
   static AudioCommand commandFromString(const String &name);
-  void executeCommand(const AudioCommandRequest &req); // dispatches to the control API above
+  void executeCommand(const AudioCommandRequest &req);
+
+  // ---- task / queue plumbing ---------------------------------------------
+  static void audioTaskEntry(void *param);
+  void audioTaskLoop();
+  void enqueueCommand(const AudioCommandRequest &req);
+
+  // ---- task-owned playback operations ------------------------------------
+  void playTrackNow(int track);
+  void pauseNow();
+  void resumeNow();
+  void stopNow();
+  void startOverNow();
 
   // ---- technical helpers ---------------------------------------------
-  void primeDfPlayer();          // volume + settle delay before a playMp3FolderTrack command
+  void primeDfPlayer();          // volume + settle wait before a playMp3FolderTrack command
   void signalPlaybackStarted();  // buzzer confirmation chirp
 };

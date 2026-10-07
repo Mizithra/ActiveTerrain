@@ -12,8 +12,8 @@ ObjectiveNode node(OBJECTIVE_TOPIC, LED_PIN, SDA_PIN, SCL_PIN);
 
 void setup() {
   Serial.begin(115200);
-  NodeConfig cfg;
-  if (!loadNodeConfig(cfg)) { /* halt + blink LED / show on OLED */ while (true) delay(1000); }
+  // NodeConfig cfg;
+  // if (!loadNodeConfig(cfg)) { /* halt + blink LED / show on OLED */ while (true) delay(1000); }
   node.begin(WIFI_SSID, WIFI_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD);
 }
 
